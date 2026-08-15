@@ -31,9 +31,6 @@ npm run build
 npm run address
 npm run balance
 
-cd platform-demo
-cp .env.example .env.local  # điền relayer key của ví chỉ giữ AVAX
-npm install
 npm run dev
 ```
 
@@ -47,8 +44,8 @@ Một deployment phục vụ toàn bộ demo tại `http://localhost:4030`:
 Chạy thêm hai merchant của demo trong terminal riêng:
 
 ```bash
-cd platform-demo && npm run dev:neon  # NeonLite :4032
-cd platform-demo && npm run dev:evil  # merchant độc :4031
+npm run dev:neon  # NeonLite :4032
+npm run dev:evil  # merchant độc :4031
 ```
 
 MCP cục bộ dùng `.mcp.json`. Chỉ có ba tool:
@@ -59,7 +56,7 @@ MCP cục bộ dùng `.mcp.json`. Chỉ có ba tool:
 
 ## Sponsor / admin
 
-Portal ở route `/sponsor` trong chính `platform-demo`. Portal **không giữ khoá** và không tự ký transaction. Owner phải dùng script/contracts để làm các bước này:
+Portal ở route `/sponsor` trong chính website. Portal **không giữ khoá** và không tự ký transaction. Owner phải dùng script/contracts để làm các bước này:
 
 1. Duyệt merchant bằng `contracts/scripts/register.ts`.
 2. Tạo campaign, approve và fund XSGD bằng `scripts/seed.ts`.
@@ -69,7 +66,7 @@ Portal ở route `/sponsor` trong chính `platform-demo`. Portal **không giữ 
 ## Developer onboarding
 
 ```bash
-npm run dev -- init \
+npm run cli -- init \
   --campaign 0x5fcee73cbbc7ac55687e8187df042e5b990c42d7032d57a20a2ca71ddf2b28f7 \
   --sponsor supadb \
   --chain 43113
@@ -82,7 +79,7 @@ Sau khi SupaDB có usage đủ 0.30 XSGD, developer có thể xin tranche kế t
 ```bash
 CHAIN_ID=43113 GRANT_MANAGER=0x3230B5666d8De86d3079D07bb45A7075A1d0b043 \
 PROJECT_ID=0xb34e1d43700c753c79fa98a98c434b921d9d3467e3f07f78ada83890ab8162bc \
-npm run dev -- claim
+npm run cli -- claim
 ```
 
 Đã xác minh trên Fuji: transaction
@@ -93,7 +90,7 @@ nhả tranche 2, nâng số dư đã vest của SupaDB Grant từ 0.50 lên 1.00
 
 ```bash
 # merchant độc: challenge có prompt injection và đòi 30 XSGD
-cd platform-demo && npm run dev:evil
+npm run dev:evil
 ```
 
 Gọi endpoint độc qua `pay_for_service` phải bị checkpoint từ chối trước `unwrap`: sai `payTo`, vượt `max_amount`/per-tx cap. `npm run build` và `npm test` bao gồm giới hạn merchant, vesting, expiry, revoke, replay policy và binding authorization vào đúng invoice.
@@ -102,6 +99,6 @@ Gọi endpoint độc qua `pay_for_service` phải bị checkpoint từ chối t
 
 - AVAX Fuji cho signer (unwrap) và self-relayer (settlement).
 - XSGD Fuji cho sponsor nạp campaign.
-- Private key **chỉ** cho self-relayer trong `platform-demo/.env.local`; không commit file này.
+- Private key **chỉ** cho self-relayer trong `.env.local`; không commit file này.
 - Self-relay là provider mặc định đã E2E với merchant `payTo` hiện tại. `0xgasless` chỉ nên bật sau khi verify thành công với đúng XSGD/Fuji/recipient; public facilitator hiện từ chối SupaDB demo recipient và docs không công bố quy trình whitelist.
 - Ví owner của `MerchantRegistry` để duyệt merchant mới.

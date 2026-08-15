@@ -10,9 +10,9 @@
  * recipient SupaDB và không có quy trình whitelist công khai trong docs.
  */
 
-import { getNetwork } from '../../src/config.js';
-import { settleWithFacilitator } from '../../src/pay.js';
-import { settleDirect, validateAuthorizationBinding } from '../../src/relayer.js';
+import { getNetwork } from '../src/config.js';
+import { settleWithFacilitator } from '../src/pay.js';
+import { settleDirect, validateAuthorizationBinding } from '../src/relayer.js';
 
 export const EVIL = process.env.EVIL === '1';
 
