@@ -7,7 +7,9 @@
  *   npm run dev challenge [amount]   lấy 402 từ card API, in ra đã decode
  *   npm run dev verify  [amount]     ký EIP-3009 + POST /verify  ← KHÔNG cần token
  *   npm run dev card    [amount] [tên]   phát thẻ thật (TỐN TIỀN THẬT trên mainnet)
- *   npm run dev init --campaign 0x.. --sponsor supadb [--repo url] [--chain 43113]  kiểm campaign rồi ghi config
+ *   npm run dev init [claude|codex] --campaign 0x.. --sponsor supadb [--repo url] [--chain 43113]
+ *     kiểm campaign rồi ghi config; bỏ --campaign → cài đặt chung, chỉ nối MCP server
+ *     client đứng ngay sau "init"; bỏ trống ghi cho cả Claude Code và Codex CLI
  *   npm run dev sponsorship [--wallet 0x..]   dự án này có tài trợ không (read-only)
  *   npm run dev claim-grant [--campaign 0x..] [--wallet 0x..]  phát Grant cho ví này
  *   npm run dev claim --grant-manager 0x.. --project 0x..  xin tranche kế tiếp
@@ -105,16 +107,26 @@ async function main() {
     }
 
     case 'init': {
+      const clientArg = process.argv[3];
+      const client = clientArg === 'claude' || clientArg === 'codex' ? clientArg : undefined;
       const campaign = arg('campaign');
       const repo = arg('repo');
-      const sponsor = arg('sponsor') ?? (repo ? sponsorSlugOf(parseRepoUrl(repo)) : 'unknown');
-      if (!campaign) throw new Error('thiếu --campaign 0x…');
+      const sponsor = arg('sponsor') ?? (repo ? sponsorSlugOf(parseRepoUrl(repo)) : undefined);
+
+      if (!campaign) {
+        // Cài đặt chung: chưa gắn campaign nào, chỉ nối MCP server cho agent.
+        const files = runInit({ sponsor, chainId, repo, client });
+        console.log(`đã ghi: ${files.join(', ')}`);
+        console.log(`\nMở ${client === 'codex' ? 'Codex CLI' : client === 'claude' ? 'Claude Code' : 'Claude Code hoặc Codex CLI'} trong thư mục này — MCP server tự nạp.`);
+        break;
+      }
+
       const gm = (process.env.GRANT_MANAGER ?? net.grantManager) as `0x${string}` | undefined;
       if (!gm) throw new Error('thiếu GRANT_MANAGER cho network này; không thể xác minh campaign');
       const onChain = await getCampaign(gm, campaign as `0x${string}`, chainId);
       if (!onChain) throw new Error(`campaign không tồn tại trên ${net.name}: ${campaign}`);
       if (onChain.paused) throw new Error('campaign đang pause; không onboarding project mới');
-      const files = runInit({ campaignId: campaign, sponsor, chainId, repo });
+      const files = runInit({ campaignId: campaign, sponsor: sponsor ?? 'unknown', chainId, repo, client });
       console.log(`đã ghi: ${files.join(', ')}`);
       console.log(`campaign verified: sponsor ${onChain.sponsor} · grant ${formatAmount(onChain.grantAmount)} XSGD`);
       console.log('\nMở Claude Code trong thư mục này rồi hỏi:');

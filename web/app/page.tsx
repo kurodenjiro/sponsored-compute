@@ -10,14 +10,6 @@ const tools = [
   { name: 'Amazon RDS', category: 'database', fit: 'Good match', funded: '0.80 XSGD', reward: '0.06 XSGD', detail: 'Operate the application data layer in a managed relational database.' },
 ];
 const demoTiming = { start: 1_400, thinking: 1_800, choose: 2_000, build: 3_200 };
-const mcpConfig = `{
-  "mcpServers": {
-    "sponsored-compute": {
-      "command": "npx",
-      "args": ["-y", "@sponsored-compute/mcp"]
-    }
-  }
-}`;
 
 export default function Home() {
   const prompt = 'Design an AWS-hosted AI onboarding flow funded with StraitsX XSGD credits.';
@@ -27,14 +19,23 @@ export default function Home() {
   const [selected, setSelected] = useState<typeof tools[number] | null>(null);
   const [building, setBuilding] = useState(false);
   const [rewarded, setRewarded] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [install, setInstall] = useState<{ claude: string; codex: string } | null>(null);
+  const [copied, setCopied] = useState('');
   const threadRef = useRef<HTMLDivElement>(null);
-  const copyMcpConfig = async () => {
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/mcp-install').then((r) => r.json()).then((d) => { if (!cancelled) setInstall(d); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  const copyInstall = async (client: 'claude' | 'codex') => {
+    if (!install) return;
     try {
-      await navigator.clipboard.writeText(mcpConfig);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1_800);
-    } catch { /* Browsers without clipboard permission leave the config selectable. */ }
+      await navigator.clipboard.writeText(install[client]);
+      setCopied(client);
+      window.setTimeout(() => setCopied(''), 1_800);
+    } catch { /* Browsers without clipboard permission leave the command selectable. */ }
   };
 
   useEffect(() => {
@@ -78,7 +79,7 @@ export default function Home() {
         {rewarded && <div className="reward"><span>✓</span><div><b>Reward released</b><p>{selected?.name} completed the requested build.</p></div><strong>{selected?.reward}<small>earned</small></strong></div>}
       </div><footer>✦ checkpoint runs before signing <span>{rewarded ? '✓ settlement recorded' : 'funding rules stay fixed'}</span></footer>
     </div></section>
-    <section id="install" className="install"><div><p className="eyebrow">CONNECT YOUR AGENT · 30 SECONDS</p><h2>Install the<br />MCP server.</h2><p>Add Sponsored Compute to Claude Code or any MCP client. Your agent can discover sponsored platforms, inspect Grant status, and pay only through the checkpoint — it never sees a private key.</p><ol className="install-steps"><li><b>01</b>Copy the config</li><li><b>02</b>Save as <code>.mcp.json</code></li><li><b>03</b>Restart your MCP client</li></ol><p className="install-note">Sponsoring a repository instead? The <Link href="/sponsor">sponsor console ↗</Link> generates a project-bound install command tied to your funded campaign.</p></div><div className="install-card"><header><span>MCP CONFIG</span><span>stdio</span></header><pre>{mcpConfig}</pre><button onClick={copyMcpConfig}>{copied ? 'Copied to clipboard ✓' : 'Copy MCP config'}</button><small>Five tools: discover sponsored platforms, check sponsorship, claim a Grant, read Grant status, and pay through the checkpoint.</small></div></section>
+    <section id="install" className="install"><div><p className="eyebrow">CONNECT YOUR AGENT · ONE COMMAND</p><h2>Install the<br />MCP server.</h2><p>Run one line in your terminal — it writes the pointer file your agent auto-loads. Your agent can then discover sponsored platforms, inspect Grant status, and pay only through the checkpoint — it never sees a private key.</p><ol className="install-steps"><li><b>01</b>Run the command</li><li><b>02</b>Restart your MCP client</li></ol><p className="install-note">Sponsoring a repository instead? The <Link href="/sponsor">sponsor console ↗</Link> generates a project-bound install command tied to your funded campaign.</p></div><div className="install-card"><header><span>CLAUDE CODE</span><span>stdio</span></header><pre>{install ? install.claude : 'loading…'}</pre><button disabled={!install} onClick={() => copyInstall('claude')}>{copied === 'claude' ? 'Copied to clipboard ✓' : 'Copy command'}</button><header><span>CODEX CLI</span><span>stdio</span></header><pre>{install ? install.codex : 'loading…'}</pre><button disabled={!install} onClick={() => copyInstall('codex')}>{copied === 'codex' ? 'Copied to clipboard ✓' : 'Copy command'}</button><small>Five tools: discover sponsored platforms, check sponsorship, claim a Grant, read Grant status, and pay through the checkpoint.</small></div></section>
     <section className="boundaries"><p className="eyebrow">WHY IT DOESN’T LEAK</p><h2>A credit should act<br />like a commitment.</h2><div>{[['01', 'The merchant is fixed.', 'Owner-approved registry allowlist.'], ['02', 'The amount is fixed.', 'Caller, daily, vested and per-tx caps.'], ['03', 'The end is fixed.', 'Expiry, revoke and exhausted credit stop it.']].map(x => <article key={x[0]}><b>{x[0]}</b><h3>{x[1]}</h3><p>{x[2]}</p></article>)}</div></section>
     <section className="closing"><div><p className="eyebrow">ONE DEPLOYMENT · THREE SURFACES</p><h2>Spend XSGD<br /><em>with intent.</em></h2></div><div><Link href="/sponsor">Open sponsor console ↗</Link><Link href="/merchant">Open merchant dashboard ↗</Link></div></section>
     <style jsx>{`

@@ -14,12 +14,15 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { DEFAULT_CHAIN_ID, getNetwork } from './config.js';
 
 export interface InitOptions {
-  campaignId: string;
-  sponsor: string;
+  /** Bỏ trống = cài đặt chung, không gắn campaign nào (chỉ nối MCP server). */
+  campaignId?: string;
+  sponsor?: string;
   chainId?: number;
   cwd?: string;
   /** URL repo được tài trợ — chỉ để người đọc đối chiếu, không cấp quyền gì. */
   repo?: string;
+  /** Bỏ trống = ghi cho cả hai client. Chỉ định để chỉ ghi một file. */
+  client?: 'claude' | 'codex';
 }
 
 export type CampaignPointer = {
@@ -33,7 +36,9 @@ export type CampaignPointer = {
 
 export type Manifest = { version: number; campaigns: CampaignPointer[] };
 
-function serverName(sponsor: string, chainId: number) {
+/** Không có sponsor (cài đặt chung, chưa gắn campaign) → tên server generic. */
+function serverName(sponsor: string | undefined, chainId: number) {
+  if (!sponsor) return 'sponsored-compute';
   const slug = sponsor.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'campaign';
   return `sponsored-compute-${slug}-${chainId}`;
 }
@@ -76,74 +81,80 @@ export function codexManifest(sponsor: string, chainId = DEFAULT_CHAIN_ID): stri
 export function runInit(o: InitOptions): string[] {
   const chainId = o.chainId ?? DEFAULT_CHAIN_ID;
   getNetwork(chainId); // reject unknown chains before writing into a user repository
-  if (!/^0x[0-9a-fA-F]{64}$/.test(o.campaignId)) {
-    throw new Error('campaignId must be a bytes32 value: 0x followed by 64 hex characters');
-  }
   const written: string[] = [];
 
   // ---- sponsored.json ----
-  const spPath = `${o.cwd ?? '.'}/sponsored.json`;
-  const prev = existsSync(spPath) ? JSON.parse(readFileSync(spPath, 'utf8')) : null;
-  const campaigns: CampaignPointer[] = (prev?.campaigns ?? []).map((campaign: any) => ({
-    campaignId: campaign.campaignId,
-    sponsor: campaign.sponsor,
-    // Migrate v1 safely: it stored one shared chainId at the document root.
-    chainId: campaign.chainId ?? prev?.chainId,
-    ...(campaign.repo ? { repo: campaign.repo } : {}),
-    ...(campaign.projectId ? { projectId: campaign.projectId } : {}),
-  }));
+  // Chỉ ghi khi có campaign thật để trỏ tới. `init claude` / `init codex` không
+  // kèm --campaign là cài đặt chung — chỉ nối MCP server, chưa gắn tài trợ nào.
+  if (o.campaignId) {
+    if (!/^0x[0-9a-fA-F]{64}$/.test(o.campaignId)) {
+      throw new Error('campaignId must be a bytes32 value: 0x followed by 64 hex characters');
+    }
+    const spPath = `${o.cwd ?? '.'}/sponsored.json`;
+    const prev = existsSync(spPath) ? JSON.parse(readFileSync(spPath, 'utf8')) : null;
+    const campaigns: CampaignPointer[] = (prev?.campaigns ?? []).map((campaign: any) => ({
+      campaignId: campaign.campaignId,
+      sponsor: campaign.sponsor,
+      // Migrate v1 safely: it stored one shared chainId at the document root.
+      chainId: campaign.chainId ?? prev?.chainId,
+      ...(campaign.repo ? { repo: campaign.repo } : {}),
+      ...(campaign.projectId ? { projectId: campaign.projectId } : {}),
+    }));
 
-  const existingCampaign = campaigns.find((c) => c.campaignId?.toLowerCase() === o.campaignId.toLowerCase());
-  if (existingCampaign && existingCampaign.chainId !== chainId) {
-    throw new Error(`campaign ${o.campaignId} is already configured for chain ${existingCampaign.chainId}`);
+    const existingCampaign = campaigns.find((c) => c.campaignId?.toLowerCase() === o.campaignId!.toLowerCase());
+    if (existingCampaign && existingCampaign.chainId !== chainId) {
+      throw new Error(`campaign ${o.campaignId} is already configured for chain ${existingCampaign.chainId}`);
+    }
+    if (existingCampaign) {
+      if (o.repo) existingCampaign.repo = o.repo;
+    } else {
+      campaigns.push({ campaignId: o.campaignId, sponsor: o.sponsor ?? 'unknown', chainId, ...(o.repo ? { repo: o.repo } : {}) });
+    }
+
+    writeFileSync(spPath, JSON.stringify({ version: 2, campaigns }, null, 2) + '\n');
+    written.push('sponsored.json');
   }
-  if (existingCampaign) {
-    if (o.repo) existingCampaign.repo = o.repo;
-  } else {
-    campaigns.push({ campaignId: o.campaignId, sponsor: o.sponsor, chainId, ...(o.repo ? { repo: o.repo } : {}) });
-  }
 
-  writeFileSync(
-    spPath,
-    JSON.stringify({ version: 2, campaigns }, null, 2) + '\n',
-  );
-  written.push('sponsored.json');
-
-  // ---- .mcp.json ----
-  const mcpPath = `${o.cwd ?? '.'}/.mcp.json`;
-  const existing = existsSync(mcpPath) ? JSON.parse(readFileSync(mcpPath, 'utf8')) : {};
   const name = serverName(o.sponsor, chainId);
   const nextServer = serverConfig();
-  const currentServer = existing.mcpServers?.[name];
-  if (currentServer && JSON.stringify(currentServer) !== JSON.stringify(nextServer)) {
-    throw new Error(`MCP server "${name}" already exists with a different configuration; resolve it manually instead of overwriting it.`);
+
+  // ---- .mcp.json ----
+  if (o.client !== 'codex') {
+    const mcpPath = `${o.cwd ?? '.'}/.mcp.json`;
+    const existing = existsSync(mcpPath) ? JSON.parse(readFileSync(mcpPath, 'utf8')) : {};
+    const currentServer = existing.mcpServers?.[name];
+    if (currentServer && JSON.stringify(currentServer) !== JSON.stringify(nextServer)) {
+      throw new Error(`MCP server "${name}" already exists with a different configuration; resolve it manually instead of overwriting it.`);
+    }
+    const merged = {
+      ...existing,
+      mcpServers: { ...(existing.mcpServers ?? {}), [name]: nextServer },
+    };
+    writeFileSync(mcpPath, JSON.stringify(merged, null, 2) + '\n');
+    written.push('.mcp.json');
   }
-  const merged = {
-    ...existing,
-    mcpServers: { ...(existing.mcpServers ?? {}), [name]: nextServer },
-  };
-  writeFileSync(mcpPath, JSON.stringify(merged, null, 2) + '\n');
-  written.push('.mcp.json');
 
   // ---- .codex/config.toml ----
   // Không có parser TOML ở đây, nên chỉ tự cho phép đúng MỘT thứ: kiểm tra
   // khối của CHÍNH MÌNH (byte-for-byte, vì mình luôn sinh ra cùng một chuỗi)
   // đã có sẵn hay chưa. Header trùng mà nội dung khác → dừng, không đoán ý
   // người đã sửa tay — giống hệt luật của .mcp.json ở trên.
-  const codexDir = `${o.cwd ?? '.'}/.codex`;
-  const codexPath = `${codexDir}/config.toml`;
-  const codexHeader = `[mcp_servers.${name}]`;
-  const codexBlockText = codexBlock(name, nextServer);
-  const existingToml = existsSync(codexPath) ? readFileSync(codexPath, 'utf8') : '';
-  if (!existingToml.includes(codexBlockText)) {
-    if (existingToml.includes(`${codexHeader}\n`) || existingToml.trimEnd().endsWith(codexHeader)) {
-      throw new Error(`Codex MCP server "${name}" already exists in .codex/config.toml with a different configuration; resolve it manually instead of overwriting it.`);
+  if (o.client !== 'claude') {
+    const codexDir = `${o.cwd ?? '.'}/.codex`;
+    const codexPath = `${codexDir}/config.toml`;
+    const codexHeader = `[mcp_servers.${name}]`;
+    const codexBlockText = codexBlock(name, nextServer);
+    const existingToml = existsSync(codexPath) ? readFileSync(codexPath, 'utf8') : '';
+    if (!existingToml.includes(codexBlockText)) {
+      if (existingToml.includes(`${codexHeader}\n`) || existingToml.trimEnd().endsWith(codexHeader)) {
+        throw new Error(`Codex MCP server "${name}" already exists in .codex/config.toml with a different configuration; resolve it manually instead of overwriting it.`);
+      }
+      if (!existsSync(codexDir)) mkdirSync(codexDir, { recursive: true });
+      const sep = existingToml.length ? (existingToml.endsWith('\n\n') ? '' : existingToml.endsWith('\n') ? '\n' : '\n\n') : '';
+      writeFileSync(codexPath, `${existingToml}${sep}${codexBlockText}\n`);
     }
-    if (!existsSync(codexDir)) mkdirSync(codexDir, { recursive: true });
-    const sep = existingToml.length ? (existingToml.endsWith('\n\n') ? '' : existingToml.endsWith('\n') ? '\n' : '\n\n') : '';
-    writeFileSync(codexPath, `${existingToml}${sep}${codexBlockText}\n`);
+    written.push('.codex/config.toml');
   }
-  written.push('.codex/config.toml');
 
   return written;
 }
@@ -153,13 +164,15 @@ export function runInit(o: InitOptions): string[] {
  * phải mang vào repo. Nó KHÔNG phải token, không phải giấy phép: chạy nó chỉ
  * ghi hai file con trỏ, và ai cũng chạy được. Quyền nằm ở Grant on-chain.
  */
-export function installCommand(o: { campaignId: string; sponsor: string; chainId?: number; repo?: string }) {
+export function installCommand(o: { campaignId?: string; sponsor?: string; chainId?: number; repo?: string; client?: 'claude' | 'codex' }) {
   const chainId = o.chainId ?? DEFAULT_CHAIN_ID;
   getNetwork(chainId);
+  const runner = CLI_SPEC.startsWith('github:') ? `npx -y --package ${CLI_SPEC} sponsored-compute` : `npx -y ${CLI_SPEC}`;
+  const client = o.client ? ` ${o.client}` : '';
+  if (!o.campaignId) return `${runner} init${client}`;
   const chain = chainId === 43114 ? '' : ` --chain ${chainId}`;
   const repo = o.repo ? ` --repo ${o.repo}` : '';
-  const runner = CLI_SPEC.startsWith('github:') ? `npx -y --package ${CLI_SPEC} sponsored-compute` : `npx -y ${CLI_SPEC}`;
-  return `${runner} init --campaign ${o.campaignId} --sponsor ${o.sponsor}${repo}${chain}`;
+  return `${runner} init${client} --campaign ${o.campaignId} --sponsor ${o.sponsor}${repo}${chain}`;
 }
 
 /** Nội dung .mcp.json mà init sẽ ghi — để sponsor console xem trước, không phải đoán. */
