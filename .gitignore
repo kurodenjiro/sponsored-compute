@@ -13,4 +13,5 @@ dist/
 **/artifacts/
 **/cache/
 **/coverage/
+slides/*.inspect.ndjson
 platform-demo/.env.local
