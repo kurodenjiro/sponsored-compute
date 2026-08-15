@@ -30,7 +30,12 @@ npm install
 npm run dev
 ```
 
-Merchant demo sẽ ở `http://localhost:4030`; API thu phí là `POST /api/v1/query`.
+Một deployment phục vụ toàn bộ demo tại `http://localhost:4030`:
+
+- `/` — landing + prompt walkthrough
+- `/sponsor` — sponsor console
+- `/merchant` — merchant dashboard + settlement ledger
+- `/api/v1/query` — x402 API thu phí
 
 Chạy thêm hai merchant của demo trong terminal riêng:
 
@@ -47,7 +52,7 @@ MCP cục bộ dùng `.mcp.json`. Chỉ có ba tool:
 
 ## Sponsor / admin
 
-Portal đọc được tại `landing` (`npm run dev` trong thư mục đó), route `/sponsor`. Portal **không giữ khoá** và không tự ký transaction. Owner phải dùng script/contracts để làm các bước này:
+Portal ở route `/sponsor` trong chính `platform-demo`. Portal **không giữ khoá** và không tự ký transaction. Owner phải dùng script/contracts để làm các bước này:
 
 1. Duyệt merchant bằng `contracts/scripts/register.ts`.
 2. Tạo campaign, approve và fund XSGD bằng `scripts/seed.ts`.
