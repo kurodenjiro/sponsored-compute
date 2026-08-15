@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 4030",
-    "dev:evil": "EVIL=1 next dev -p 4031",
-    "dev:neon": "MERCHANT_NAME=NeonLite MERCHANT_PAYTO=0x1f212B0a09393F82B7E60D18c2e663f13DA5f7F0 PRICE_ATOMIC=100000 next dev -p 4032",
+    "dev": "NEXT_DIST_DIR=.next-dev next dev -p 4030",
+    "dev:evil": "NEXT_DIST_DIR=.next-dev-evil EVIL=1 next dev -p 4031",
+    "dev:neon": "NEXT_DIST_DIR=.next-dev-neon MERCHANT_NAME=NeonLite MERCHANT_PAYTO=0x1f212B0a09393F82B7E60D18c2e663f13DA5f7F0 PRICE_ATOMIC=100000 next dev -p 4032",
     "build": "next build",
     "start": "next start -p 4030"
   },

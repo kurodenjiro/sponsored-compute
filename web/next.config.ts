@@ -7,6 +7,9 @@ import path from 'node:path';
  * (chuẩn ESM/NodeNext) — webpack cần được chỉ cách map ngược về .ts.
  */
 const config: NextConfig = {
+  // Keep development output separate from production builds. This means a
+  // concurrent `next build` cannot delete manifests used by `next dev`.
+  distDir: process.env.NEXT_DIST_DIR ?? '.next',
   // The repository root owns shared payment and contract code.
   outputFileTracingRoot: path.join(process.cwd(), '..'),
   // @napi-rs/keyring là native .node — webpack không bundle được, phải để Node require thẳng

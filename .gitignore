@@ -14,6 +14,7 @@ dist/
 **/node_modules/
 **/dist/
 **/.next/
+**/.next-dev*/
 **/artifacts/
 **/cache/
 **/coverage/
