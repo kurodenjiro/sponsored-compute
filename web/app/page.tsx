@@ -4,14 +4,14 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 
 const tools = [
-  { name: 'SupaDB', category: 'database', fit: 'Best match', funded: '2.00 XSGD', reward: '0.14 XSGD', detail: 'Postgres-compatible storage with a generous free tier.' },
-  { name: 'VectorLake', category: 'search', fit: 'Strong match', funded: '1.20 XSGD', reward: '0.09 XSGD', detail: 'Embeddings and semantic search for agent memory.' },
-  { name: 'EdgeParse', category: 'automation', fit: 'Good match', funded: '0.80 XSGD', reward: '0.06 XSGD', detail: 'Structured extraction for PDFs, pages, and forms.' },
+  { name: 'AWS Lambda', category: 'serverless', fit: 'Best match', funded: '2.00 XSGD', reward: '0.14 XSGD', detail: 'Run event-driven backend tasks without operating servers.' },
+  { name: 'Amazon Bedrock', category: 'AI', fit: 'Strong match', funded: '1.20 XSGD', reward: '0.09 XSGD', detail: 'Add foundation-model inference to the product workflow.' },
+  { name: 'Amazon RDS', category: 'database', fit: 'Good match', funded: '0.80 XSGD', reward: '0.06 XSGD', detail: 'Operate the application data layer in a managed relational database.' },
 ];
 const demoTiming = { start: 1_400, thinking: 1_800, choose: 2_000, build: 3_200 };
 
 export default function Home() {
-  const prompt = 'Find a funded database tool for a new MVP.';
+  const prompt = 'Design an AWS-hosted AI onboarding flow funded with StraitsX XSGD credits.';
   const [submittedPrompt, setSubmittedPrompt] = useState('');
   const [searching, setSearching] = useState(false);
   const [matches, setMatches] = useState(false);
@@ -49,12 +49,12 @@ export default function Home() {
   return <main className="site">
     <nav><Link href="/" className="brand">sponsored<span>compute</span></Link><div><a href="#flow">How it works</a><Link href="/merchant">Merchant</Link><Link href="/sponsor">Sponsor</Link></div><small><i /> FUJI LIVE</small></nav>
     <section className="hero"><p className="eyebrow">XSGD · AVALANCHE · x402 · PURPOSE-BOUND GRANTS</p><h1>Fund the build.<br /><em>Not the loophole.</em></h1><p>Developer credits an AI agent can spend only where the sponsor intended — per call, on-chain, with a hard stop.</p><div className="actions"><a href="#flow">Try the agent flow ↓</a><Link href="/sponsor">Sponsor a campaign ↗</Link></div><aside><span>AGENT / MCP</span><b>Grant #1</b><span>AVAILABLE</span><strong>0.14 XSGD</strong><small>allowlist · per-tx cap · daily cap · expiry</small></aside></section>
-    <div className="ticker">NO CARD REQUIRED ◆ AGENT-SAFE CHECKPOINT ◆ XSGD SETTLES ON-CHAIN ◆ NO CARD REQUIRED ◆ AGENT-SAFE CHECKPOINT ◆</div>
+    <div className="ticker"><span>NO CARD REQUIRED</span><i>◆</i><span>AGENT-SAFE CHECKPOINT</span><i>◆</i><span>XSGD SETTLES ON-CHAIN</span></div>
     <section id="flow" className="flow"><div><p className="eyebrow">THE PRODUCT, IN ONE CONVERSATION</p><h2>Ask normally.<br />Pay deliberately.</h2><p>The user describes the job. The agent finds funded tools, builds with the selected one, and returns the reward only after the work is complete.</p></div><div className="terminal"><header><span>agent session · sponsored-compute</span><span>secure checkpoint</span></header><div className="session-state"><span>LIVE AGENT THREAD</span><b>{rewarded ? 'reward released' : building ? 'build checkpoint' : matches ? 'tools matched' : searching ? 'agent is thinking' : 'ready'}</b></div>
       <div className="conversation thread" ref={threadRef}>
-        <p className="agent"><b>sponsored agent</b>Tell me what you want to build. I&apos;ll surface relevant tools with active sponsor funding and show the reward before you choose.</p>
+        <p className="agent"><b>sponsored agent</b>I&apos;m mapping an AWS build plan to purpose-bound StraitsX XSGD credits. I&apos;ll show the funded path and developer reward before the agent spends.</p>
         {searching && <p className="agent typing"><b>sponsored agent</b><span /><span /><span /></p>}
-        {matches && <div className="agent tool-message"><b>sponsored agent</b><p>I found three funded tools. These are ranked by fit, not sponsorship. I&apos;ll use the strongest match automatically.</p><div className="tool-list">{tools.map((tool) => <button className={`tool ${selected?.name === tool.name ? 'picked' : ''}`} key={tool.name} disabled><span><b>{tool.name}</b><small>{tool.category} · {tool.fit} · funded {tool.funded}</small><em>{tool.detail}</em></span><strong>{tool.reward}<small>reward</small></strong></button>)}</div></div>}
+        {matches && <div className="agent tool-message"><b>sponsored agent</b><p>Demo scenario: AWS services are ranked by technical fit; XSGD funding and reward are enforced by the Sponsored Compute flow. I&apos;ll use the strongest match automatically.</p><div className="tool-list">{tools.map((tool) => <button className={`tool ${selected?.name === tool.name ? 'picked' : ''}`} key={tool.name} disabled><span><b>{tool.name}</b><small>{tool.category} · {tool.fit} · funded {tool.funded}</small><em>{tool.detail}</em></span><strong>{tool.reward}<small>reward</small></strong></button>)}</div></div>}
         {selected && <p className="agent recommendation"><b>sponsored agent</b>Best match selected: {selected.name}.</p>}
         {selected && <p className="agent"><b>sponsored agent</b>{building ? `Checkpoint accepted. ${selected.name} is running within the funded cap…` : `Build complete with ${selected.name}. The exact spend was verified.`}</p>}
         {building && <div className="progress"><span className="running" /></div>}

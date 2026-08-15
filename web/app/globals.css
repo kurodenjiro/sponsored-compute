@@ -9,6 +9,39 @@
   --sc-accent: #c8ff45;
 }
 
+.app-content { opacity: 0; transition: opacity .34s ease; }
+.app-content-ready { opacity: 1; }
+.app-loader, .route-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  background: #0d0f0b;
+  color: var(--sc-ink);
+}
+.route-loader { position: fixed; z-index: 101; }
+.app-loader > div, .route-loader > div { display: grid; justify-items: center; gap: 14px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.app-loader b, .route-loader b { font: 800 21px/1 'Helvetica Neue', sans-serif; letter-spacing: -.07em; }
+.app-loader b span, .route-loader b span { color: var(--sc-accent); }
+.app-loader i, .route-loader i { width: 30px; height: 2px; background: var(--sc-accent); animation: sc-loading 1.15s ease-in-out infinite; }
+.app-loader small, .route-loader small { color: #8b9784; font-size: 10px; letter-spacing: .11em; text-transform: uppercase; }
+@keyframes sc-loading { 0%, 100% { transform: scaleX(.25); opacity: .35; } 50% { transform: scaleX(1); opacity: 1; } }
+
+.site .ticker.ticker {
+  display: flex;
+  justify-content: center;
+  gap: clamp(14px, 3vw, 42px);
+  padding: 15px 24px;
+  overflow: visible;
+  white-space: normal;
+}
+.site .ticker i { color: #4c651c; font-style: normal; }
+@media (max-width: 580px) {
+  .site .ticker.ticker { gap: 9px; padding-inline: 12px; font-size: 9px; letter-spacing: .04em; }
+  .site .ticker i { display: none; }
+}
+
 /* shadcn-style primitives: intentionally framework-neutral so the pages can
    keep their editorial layout while sharing the same control language. */
 .sponsor .board .ui-input {
