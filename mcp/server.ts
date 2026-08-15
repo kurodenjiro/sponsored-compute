@@ -18,7 +18,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
-import { getSigner } from '../src/signer.js';
+import { getSigner, agentAddress } from '../src/signer.js';
 import { getGrantSource } from '../src/grant.js';
 import { claimSponsoredGrant, readSponsorship } from '../src/claim.js';
 import { formatAmount, projectIdOf } from '../src/campaign.js';
@@ -119,25 +119,30 @@ const TOOLS = [
 ];
 
 /**
- * claim_sponsored_grant ghi projectId vào sponsored.json — nhưng nếu các tool
- * tiêu Grant không đọc lại thì con trỏ đó vô dụng: claim xong, agent vẫn báo
- * "No Grant exists" trừ khi dev tự export PROJECT_ID. Thứ tự ưu tiên: tham số
- * gọi > env > con trỏ trong repo.
+ * claim_sponsored_grant records projectId in sponsored.json. If the tools that
+ * spend the Grant never read it back, that pointer is useless: right after a
+ * successful claim the agent still answers "No Grant exists" unless the
+ * developer exports PROJECT_ID by hand. Precedence: call argument > env > the
+ * pointer recorded in the repo.
+ *
+ * sponsored.json lives in the repo, so it is UNTRUSTED input. A projectId is
+ * derivable from campaignId + wallet, both public on-chain, so a malicious repo
+ * could pre-record someone else's projectId. unwrap() is permissionless and
+ * always pays out to the Grant's own signer, so pointing at a third party's
+ * Grant would burn their budget. Therefore take only campaignId from the file
+ * and DERIVE the projectId for this agent's own wallet.
+ *
+ * Read-only paths must not mint a wallet, so this never creates a key: with no
+ * wallet yet there is no Grant to find either.
  */
 async function resolveProjectId(explicit?: string): Promise<string> {
   if (explicit) return explicit;
   if (process.env.PROJECT_ID) return process.env.PROJECT_ID;
 
-  /**
-   * sponsored.json nằm trong repo nên KHÔNG đáng tin: projectId suy ra được từ
-   * campaignId + ví (đều công khai on-chain), nên một repo độc có thể ghi sẵn
-   * projectId của Grant người khác. Vì vậy chỉ lấy campaignId từ file rồi TỰ
-   * suy ra projectId cho ví của chính agent — con trỏ đã ghi chỉ được dùng khi
-   * nó khớp đúng giá trị suy ra.
-   */
   const pointer = readManifest()?.campaigns.find((c) => c.campaignId);
   if (!pointer?.campaignId) return '0x';
-  const wallet = await (await getSigner()).address();
+  const wallet = await agentAddress();
+  if (!wallet) return '0x';
   return projectIdOf(pointer.campaignId, wallet);
 }
 
@@ -157,7 +162,21 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
         return text(renderPlatforms(args.category));
 
       case 'check_project_sponsorship': {
-        const wallet = args.reward_wallet ?? (await (await getSigner()).address());
+        /**
+         * This tool is documented as read-only, so it must not mint a key.
+         * getSigner() generates and persists an EOA when none exists, which
+         * turned "does this repo have sponsorship?" into a silent wallet
+         * creation on the user's machine. Creation belongs to claim, where the
+         * user has explicitly asked for it.
+         */
+        const wallet = args.reward_wallet ?? (await agentAddress());
+        if (!wallet) {
+          return text(
+            'No agent wallet exists yet, so there is nothing to check a claim against.\n'
+            + 'Claiming a Grant creates one — run claim_sponsored_grant when you want that, '
+            + 'or set AGENT_PRIVATE_KEY to use an existing wallet.',
+          );
+        }
         const found = await readSponsorship({ wallet });
         if (found.length === 0) {
           return text('No sponsored.json in this project. It carries no sponsorship pointer, so there is nothing to claim.');

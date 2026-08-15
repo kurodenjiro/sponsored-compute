@@ -13,6 +13,7 @@ import { createWalletClient, createPublicClient, http, parseAbi } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { avalanche, avalancheFuji } from 'viem/chains';
 import { getNetwork, DEFAULT_CHAIN_ID } from './config.js';
+import { agentPrivateKey } from './signer.js';
 
 const GM_ABI = parseAbi([
   'function unwrap(uint256 grantId, address payTo, uint256 amount, bytes32 nonce)',
@@ -66,12 +67,21 @@ function revertReason(e: any): string | null {
 /** Gas: ghi 3-4 slot + transfer ERC-20. 250k là dư. */
 const GAS = { gas: 250_000n, gasPrice: 25_000_000_000n };
 
+/**
+ * Đi qua đúng nguồn khoá của signer.ts. Bản cũ đọc thẳng keychain, nên trên
+ * máy không có OS keychain thì signer tạo ví trong file fallback và báo
+ * "claimable", còn claim/pay/unwrap lại không thấy khoá và hỏng sạch — dù ví
+ * đang tồn tại. Không tạo mới ở đây: tới bước ghi on-chain mà chưa có ví thì
+ * đó là lỗi luồng, không phải lúc lặng lẽ sinh khoá.
+ */
 export async function agentKey(): Promise<`0x${string}`> {
-  if (process.env.AGENT_PRIVATE_KEY) return process.env.AGENT_PRIVATE_KEY as `0x${string}`;
-  const { Entry } = await import(/* webpackIgnore: true */ '@napi-rs/keyring');
-  const pk = new Entry('sponsored-compute', 'agent-eoa').getPassword();
-  if (!pk) throw new Error('không tìm thấy khoá agent trong keychain');
-  return pk as `0x${string}`;
+  const found = await agentPrivateKey();
+  if (!found) {
+    throw new Error(
+      'chưa có ví agent — chạy `sponsored-compute address` để tạo, hoặc đặt AGENT_PRIVATE_KEY',
+    );
+  }
+  return found.pk;
 }
 
 export interface UnwrapResult {

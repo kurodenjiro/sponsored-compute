@@ -136,6 +136,17 @@ The first two are read-only. Claiming and paying create external effects and sho
 
 Once a Grant is claimed, `claim_sponsored_grant` records its `projectId` in `sponsored.json`, and the remaining tools read it from there. Set `PROJECT_ID` only to override that pointer.
 
+### The agent wallet
+
+The agent signs with a local EOA, and **the tooling generates one on first use if none exists**. This is a real side effect on the developer's machine, so it is worth stating plainly:
+
+- The key is created only by actions that need to sign — claiming a Grant, paying a merchant, releasing gas, or running `sponsored-compute address`. The read-only tools (`list_sponsored_platforms`, `check_project_sponsorship`, `get_grant_status`) never create one; with no wallet yet they say so instead.
+- It is stored in the OS keychain under `sponsored-compute / agent-eoa`. When no keychain is available the key falls back to `~/.sponsored-compute/wallet.json` (mode `0600`) — a plaintext file, and a weaker posture that the CLI warns about on stderr.
+- `AGENT_PRIVATE_KEY` overrides both and creates nothing, which is the right choice for CI.
+- No tool ever returns the private key, and it never enters the model's context. What limits the damage if the host is compromised is not key storage but the Grant itself: capped per transaction and per day, expiring, merchant-bound, and revocable by the sponsor.
+
+A Grant is bound to the wallet that claimed it. Losing the key means losing access to the Grant; the sponsor can revoke and reissue.
+
 ## Sponsor operations from the CLI
 
 The sponsor console drives these through a browser wallet. The same operations are available headless, which is what makes campaigns scriptable and testable:

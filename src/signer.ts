@@ -71,28 +71,54 @@ function fileStore(): Store {
   };
 }
 
+/**
+ * Nguồn khoá DUY NHẤT cho cả signer lẫn các đường ghi on-chain.
+ *
+ * Trước đây unwrap.agentKey() đọc thẳng keychain còn signer thì chấp nhận cả
+ * file fallback. Trên máy không có OS keychain, signer tạo ví trong file và
+ * báo "claimable", nhưng claim/pay lại không thấy khoá đâu và hỏng toàn bộ —
+ * dù ví rõ ràng đang tồn tại. Mọi nơi phải đi qua đúng một hàm này.
+ *
+ * create=false là mặc định: sinh khoá là việc có hệ quả (ghi vĩnh viễn lên
+ * máy người dùng), nên chỉ xảy ra khi caller nói rõ là muốn.
+ */
+export async function agentPrivateKey(
+  opts: { create?: boolean } = {},
+): Promise<{ pk: `0x${string}`; kind: string; created: boolean } | null> {
+  if (process.env.AGENT_PRIVATE_KEY) {
+    return { pk: process.env.AGENT_PRIVATE_KEY as `0x${string}`, kind: 'env', created: false };
+  }
+  const store = (await keyringStore()) ?? fileStore();
+  const existing = await store.get();
+  if (existing) return { pk: existing as `0x${string}`, kind: store.kind, created: false };
+  if (!opts.create) return null;
+  const pk = generatePrivateKey();
+  await store.set(pk);
+  return { pk, kind: store.kind, created: true };
+}
+
+/** Địa chỉ ví agent. Trả null khi chưa có ví và caller không cho phép tạo. */
+export async function agentAddress(opts: { create?: boolean } = {}): Promise<`0x${string}` | null> {
+  const found = await agentPrivateKey(opts);
+  return found ? privateKeyToAccount(found.pk).address : null;
+}
+
 export class LocalKeyringSigner implements Signer {
   private account!: ReturnType<typeof privateKeyToAccount>;
   private constructor(private storeKind: string) {}
 
   static async load(opts: { quiet?: boolean } = {}): Promise<LocalKeyringSigner> {
-    const store = (await keyringStore()) ?? fileStore();
-    const s = new LocalKeyringSigner(store.kind);
-
-    let pk = process.env.AGENT_PRIVATE_KEY ?? (await store.get());
-    let created = false;
-    if (!pk) {
-      pk = generatePrivateKey();
-      await store.set(pk);
-      created = true;
-    }
-    s.account = privateKeyToAccount(pk as `0x${string}`);
+    const found = await agentPrivateKey({ create: true });
+    if (!found) throw new Error('không lấy được khoá agent');
+    const { pk, kind: storeKind, created } = found;
+    const s = new LocalKeyringSigner(storeKind);
+    s.account = privateKeyToAccount(pk);
 
     if (!opts.quiet) {
       const tag = created ? 'đã TẠO MỚI' : 'đã nạp';
       // in ĐỊA CHỈ, không bao giờ in khoá
-      console.error(`[signer] ví agent ${tag}: ${s.account.address}  (lưu ở: ${store.kind})`);
-      if (store.kind.startsWith('file')) {
+      console.error(`[signer] ví agent ${tag}: ${s.account.address}  (lưu ở: ${storeKind})`);
+      if (storeKind.startsWith('file')) {
         console.error(`[signer] ⚠️  không tìm thấy OS keychain — dùng ${FALLBACK_FILE}`);
       }
     }
