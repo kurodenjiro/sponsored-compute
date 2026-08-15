@@ -13,10 +13,10 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
-import { getSigner } from '../signer.js';
-import { getGrantSource } from '../grant.js';
-import { getNetwork, DEFAULT_CHAIN_ID, isMainnet } from '../config.js';
-import { payX402, CheckpointDenied } from '../pay.js';
+import { getSigner } from '../src/signer.js';
+import { getGrantSource } from '../src/grant.js';
+import { getNetwork, DEFAULT_CHAIN_ID, isMainnet } from '../src/config.js';
+import { payX402, CheckpointDenied } from '../src/pay.js';
 import { renderPlatforms, findPlatform } from './platforms.js';
 
 const net = getNetwork();
@@ -56,7 +56,7 @@ const TOOLS = [
       type: 'object',
       properties: {
         url: { type: 'string' },
-        max_amount: { type: 'string', description: 'đơn vị nguyên, 6 decimals' },
+        max_amount: { type: 'string', description: 'atomic units, 6 decimals' },
         project_id: { type: 'string' },
         method: { type: 'string' },
         body: { type: 'object' },

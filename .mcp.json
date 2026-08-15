@@ -2,7 +2,7 @@
   "mcpServers": {
     "sponsored-compute": {
       "command": "npx",
-      "args": ["tsx", "src/mcp/server.ts"],
+      "args": ["tsx", "mcp/server.ts"],
       "env": {
         "CHAIN_ID": "43113",
         "GRANT_MANAGER": "0x3230B5666d8De86d3079D07bb45A7075A1d0b043",

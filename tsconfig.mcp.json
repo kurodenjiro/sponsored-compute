@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.core.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts", "mcp/**/*.ts"]
+}

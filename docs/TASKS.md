@@ -53,7 +53,7 @@ pay_for_service(url: string, max_amount: string)
 | Agent | Sở hữu |
 |---|---|
 | Opus 5 | `contracts/` · `src/checkpoint.ts` · `src/x402.ts` |
-| Sonnet | `src/mcp/` · `src/card.ts` · `src/cli.ts` |
+| Sonnet | `mcp/` · `src/card.ts` · `src/cli.ts` |
 | Gpt-sol | `docs/verify/` · không sửa `src/` |
 | gpt-luna | `platform-demo/` · `slides/` · `sponsored-template/` |
 
@@ -93,7 +93,7 @@ pay_for_service(url: string, max_amount: string)
 | # | Task | Class | Model | Giờ | Deps |
 |---|---|---|---|---|---|
 | 2.1 | 🔴 **`src/checkpoint.ts`** — logic quyết định có ký hay không. **KHÔNG CẮT** | A | **Opus 5** | 1 | 1.1, 1.2 |
-| 2.2 | **`src/mcp/`** — MCP server + 3 tool, stdio transport | B | Sonnet | 2 | 2.1 |
+| 2.2 | **`mcp/`** — MCP server + 3 tool, stdio transport | B | Sonnet | 2 | 2.1 |
 | 2.3 | Bước đồng ý — permission prompt hiện đúng tham số thật. **KHÔNG CẮT** | A | **Opus 5** | 0.75 | 1.3 |
 | 2.4 | `sponsored.json` → resolve campaign on-chain, từ chối `projectId` đã dùng | B | Sonnet | 1 | 1.3, 2.2 |
 | 2.5 | DynamoDB atomic claim `(pay_id, resource_id)` chống replay | B | Sonnet | 0.5 | 1.4 |
