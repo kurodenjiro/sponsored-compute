@@ -134,21 +134,29 @@ export async function claimGrantTranche(opts: {
   const pub = createPublicClient({ chain, transport: http(net.rpc) });
   const wallet = createWalletClient({ account, chain, transport: http(net.rpc) });
 
+  const call = {
+    address: opts.grantManager,
+    abi: GM_ABI,
+    functionName: 'claimTranche' as const,
+    args: [opts.grantId] as const,
+  };
+  // Như claimGas: simulate trước để nói rõ thiếu điều kiện nào, không tốn gas.
   try {
-    const hash = await wallet.writeContract({
-      address: opts.grantManager,
-      abi: GM_ABI,
-      functionName: 'claimTranche',
-      args: [opts.grantId],
-      ...GAS,
-    });
+    await pub.simulateContract({ ...call, account });
+  } catch (e: any) {
+    const r = revertReason(e);
+    return { ok: false, error: r ? `claimTranche bị từ chối: ${r}` : (e?.shortMessage ?? e?.message ?? String(e)) };
+  }
+  try {
+    const hash = await wallet.writeContract({ ...call, ...GAS });
     const r = await pub.waitForTransactionReceipt({ hash });
     if (r.status !== 'success') {
       return { ok: false, transaction: hash, error: 'claimTranche revert — usage hoặc thời gian chưa đủ' };
     }
     return { ok: true, transaction: hash };
   } catch (e: any) {
-    return { ok: false, error: e?.shortMessage ?? e?.message ?? String(e) };
+    const r = revertReason(e);
+    return { ok: false, error: r ? `claimTranche bị từ chối: ${r}` : (e?.shortMessage ?? e?.message ?? String(e)) };
   }
 }
 

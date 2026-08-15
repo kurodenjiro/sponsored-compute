@@ -94,6 +94,8 @@ Lệnh sponsor (ví gọi phải là sponsor của campaign):
   create-campaign --campaign <id> --grant-amount <atomic>
                   [--sponsor <slug> | --merchant-id <bytes32>]
                   [--asset xsgd|avax] [--validity-days 30]
+                  [--tranche-count 2] [--tranche-period 86400]
+                  tranche-period là giây giữa hai lần nhả vốn
   fund-campaign --campaign <id> --amount <atomic> [--asset xsgd|avax]
   revoke-grant --grant-id <n>        thu phần chưa tiêu về campaign
   withdraw-unused --campaign <id>    rút phần chưa cam kết về ví sponsor
@@ -263,6 +265,8 @@ async function main() {
         merchantId: arg('merchant-id') as `0x${string}` | undefined,
         grantAmount,
         ...(arg('validity-days') ? { grantValidityDays: Number(arg('validity-days')) } : {}),
+        ...(arg('tranche-count') ? { trancheCount: Number(arg('tranche-count')) } : {}),
+        ...(arg('tranche-period') ? { tranchePeriod: Number(arg('tranche-period')) } : {}),
       });
       if (!out.ok) throw new Error(out.error);
       console.log(`✓ campaign đã tạo: ${net.explorer}/tx/${out.transaction}`);
