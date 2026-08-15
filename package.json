@@ -7,20 +7,14 @@
     "sponsored-compute": "./dist/cli.js"
   },
   "scripts": {
-    "build": "npm run build:core && npm run build:web",
-    "build:core": "tsc -p tsconfig.core.json",
-    "build:web": "next build",
+    "build": "tsc",
     "typecheck": "npm run typecheck:core && npm run typecheck:mcp",
-    "typecheck:core": "tsc -p tsconfig.core.json --noEmit",
+    "typecheck:core": "tsc --noEmit",
     "typecheck:mcp": "tsc -p tsconfig.mcp.json",
     "test": "npm run test:relay && npm run test:checkpoint && npm run test:contracts",
     "test:contracts": "npm --prefix contracts test",
     "test:checkpoint": "tsx src/checkpoint.test.ts",
     "test:relay": "tsx src/relayer.test.ts",
-    "dev": "next dev -p 4030",
-    "dev:evil": "EVIL=1 next dev -p 4031",
-    "dev:neon": "MERCHANT_NAME=NeonLite MERCHANT_PAYTO=0x1f212B0a09393F82B7E60D18c2e663f13DA5f7F0 PRICE_ATOMIC=100000 next dev -p 4032",
-    "start": "next start -p 4030",
     "cli": "tsx src/cli.ts",
     "mcp": "tsx mcp/server.ts",
     "address": "tsx src/cli.ts address",
@@ -34,14 +28,10 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@napi-rs/keyring": "^1.1.6",
-    "next": "^15.1.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
     "viem": "^2.21.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "@types/react": "^19.0.0",
     "solc": "^0.8.36",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0"

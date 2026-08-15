@@ -1,0 +1,25 @@
+{
+  "name": "sponsored-compute-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 4030",
+    "dev:evil": "EVIL=1 next dev -p 4031",
+    "dev:neon": "MERCHANT_NAME=NeonLite MERCHANT_PAYTO=0x1f212B0a09393F82B7E60D18c2e663f13DA5f7F0 PRICE_ATOMIC=100000 next dev -p 4032",
+    "build": "next build",
+    "start": "next start -p 4030"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "@napi-rs/keyring": "^1.1.6",
+    "next": "^15.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "typescript": "^5.6.0"
+  }
+}
