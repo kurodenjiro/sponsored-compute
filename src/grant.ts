@@ -27,6 +27,7 @@ export interface CampaignView {
   perTxCap: bigint;
   dailyCap: bigint;
   paused: boolean;
+  asset: 0 | 1;
 }
 
 // ---------------------------------------------------------------- local (dev)
@@ -44,6 +45,7 @@ export class LocalGrantSource implements GrantSource {
     if (!g) return null;
     return {
       ...g,
+      asset: g.asset === 1 ? 1 : 0,
       total: BigInt(g.total),
       released: BigInt(g.released),
       spent: BigInt(g.spent ?? 0),
@@ -61,7 +63,8 @@ export const GRANT_MANAGER_ABI = parseAbi([
   'function grantOf(bytes32 projectId) view returns (uint256 grantId, bytes32 merchantId, address signer, uint256 total, uint256 released, uint256 spent, uint256 spentToday, uint256 perTxCap, uint256 dailyCap, uint64 expiry, bool revoked)',
   'function allowedPayTo(uint256 grantId) view returns (address[])',
   'function registry() view returns (address)',
-  'function campaigns(bytes32) view returns (address sponsor, bytes32 merchantId, uint256 funded, uint256 committed, uint256 grantAmount, uint32 trancheCount, uint32 tranchePeriod, uint256 minSpendPerTranche, uint32 minDaysPerTranche, uint64 grantValidity, uint256 perTxCap, uint256 dailyCap, address attestor, bool paused)',
+  'function assetOfGrant(uint256 grantId) view returns (uint8)',
+  'function campaigns(bytes32) view returns (address sponsor, bytes32 merchantId, uint256 funded, uint256 committed, uint256 grantAmount, uint32 trancheCount, uint32 tranchePeriod, uint256 minSpendPerTranche, uint32 minDaysPerTranche, uint64 grantValidity, uint256 perTxCap, uint256 dailyCap, address attestor, bool paused, uint8 asset)',
 ]);
 
 const MERCHANT_REGISTRY_ABI = parseAbi([
@@ -78,9 +81,9 @@ export async function getCampaign(
   const client = createPublicClient({ transport: http(net.rpc) });
   const c = (await client.readContract({
     address: grantManager, abi: GRANT_MANAGER_ABI, functionName: 'campaigns', args: [campaignId],
-  })) as readonly [`0x${string}`, `0x${string}`, bigint, bigint, bigint, number, number, bigint, number, bigint, bigint, bigint, `0x${string}`, boolean];
+  })) as readonly [`0x${string}`, `0x${string}`, bigint, bigint, bigint, number, number, bigint, number, bigint, bigint, bigint, `0x${string}`, boolean, number];
   if (c[0] === '0x0000000000000000000000000000000000000000') return null;
-  return { sponsor: c[0], merchantId: c[1], funded: c[2], committed: c[3], grantAmount: c[4], perTxCap: c[10], dailyCap: c[11], paused: c[13] };
+  return { sponsor: c[0], merchantId: c[1], funded: c[2], committed: c[3], grantAmount: c[4], perTxCap: c[10], dailyCap: c[11], paused: c[13], asset: c[14] === 1 ? 1 : 0 };
 }
 
 export class ChainGrantSource implements GrantSource {
@@ -109,6 +112,13 @@ export class ChainGrantSource implements GrantSource {
 
     if (g[0] === 0n) return null;
 
+    const asset = Number(await this.client.readContract({
+      address: this.grantManager,
+      abi: GRANT_MANAGER_ABI,
+      functionName: 'assetOfGrant',
+      args: [g[0]],
+    })) === 1 ? 1 : 0;
+
     const candidates = (await this.client.readContract({
       address: this.grantManager,
       abi: GRANT_MANAGER_ABI,
@@ -123,17 +133,17 @@ export class ChainGrantSource implements GrantSource {
       abi: GRANT_MANAGER_ABI,
       functionName: 'registry',
     }) as `0x${string}`;
-    const statuses = await Promise.all(candidates.map((payTo) => this.client.readContract({
+    const statuses = asset === 0 ? await Promise.all(candidates.map((payTo) => this.client.readContract({
       address: registry,
       abi: MERCHANT_REGISTRY_ABI,
       functionName: 'isAllowed',
       args: [g[1], payTo],
-    })));
-    const allowedPayTo = candidates.filter((_, index) => statuses[index]);
+    }))) : [];
+    const allowedPayTo = asset === 0 ? candidates.filter((_, index) => statuses[index]) : [];
 
     return {
       grantId: String(g[0]), merchantId: g[1], projectId, signer: g[2],
-      allowedPayTo,
+      allowedPayTo, asset,
       total: g[3], released: g[4], spent: g[5], spentToday: g[6],
       perTxCap: g[7], dailyCap: g[8],
       expiry: Number(g[9]), revoked: g[10],

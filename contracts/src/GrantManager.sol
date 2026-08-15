@@ -31,6 +31,9 @@ interface IERC20 {
  * thời gian hackathon. Một contract, một nguồn sự thật.
  */
 contract GrantManager {
+    uint8 public constant ASSET_XSGD = 0;
+    uint8 public constant ASSET_AVAX = 1;
+
     // ------------------------------------------------------------------ types
 
     struct Campaign {
@@ -48,6 +51,8 @@ contract GrantManager {
         uint256 dailyCap;
         address attestor;           // ký projectId (Tier 2). address(0) = Tier 0/1
         bool    paused;
+        /// 0 = XSGD (6 decimals), 1 = native AVAX (18 decimals). Immutable after creation.
+        uint8   asset;
     }
 
     struct Grant {
@@ -84,11 +89,12 @@ contract GrantManager {
     // ------------------------------------------------------------------ events
 
     event CampaignCreated(bytes32 indexed id, address indexed sponsor, bytes32 indexed merchantId);
-    event Funded(bytes32 indexed id, uint256 amount, uint256 total);
+    event Funded(bytes32 indexed id, uint8 indexed asset, uint256 amount, uint256 total);
     event CampaignPaused(bytes32 indexed id, bool paused);
     event GrantIssued(uint256 indexed grantId, bytes32 indexed campaignId, bytes32 indexed projectId, address owner, address signer, uint256 total);
     /// Dấu vết attribution — dùng để đối soát usage theo dự án (thay cho payTo riêng từng project)
     event Unwrapped(uint256 indexed grantId, bytes32 indexed projectId, address indexed payTo, uint256 amount, bytes32 nonce);
+    event GasClaimed(uint256 indexed grantId, bytes32 indexed projectId, address indexed signer, uint256 amount);
     event TrancheClaimed(uint256 indexed grantId, uint32 tranche, uint256 released);
     event GrantRevoked(uint256 indexed grantId, uint256 returned);
 
@@ -110,11 +116,28 @@ contract GrantManager {
     error TrancheDaysTooLow();
     error AllTranchesClaimed();
     error ZeroAmount();
+    error InvalidAsset();
+    error WrongFundingMethod();
+    error NativeTransferFailed();
+    error DirectAvaxDisabled();
+    error ReentrantCall();
+
+    uint256 private unlocked = 1;
+
+    modifier nonReentrant() {
+        if (unlocked != 1) revert ReentrantCall();
+        unlocked = 2;
+        _;
+        unlocked = 1;
+    }
 
     constructor(address _xsgd, address _registry) {
         xsgd = IERC20(_xsgd);
         registry = MerchantRegistry(_registry);
     }
+
+    /// AVAX must always be attributed to one campaign through fundAvax().
+    receive() external payable { revert DirectAvaxDisabled(); }
 
     // ---------------------------------------------------------------- sponsor
 
@@ -122,6 +145,7 @@ contract GrantManager {
         require(campaigns[id].sponsor == address(0), "campaign exists");
         require(c.trancheCount > 0, "trancheCount=0");
         require(c.grantAmount > 0, "grantAmount=0");
+        if (c.asset > ASSET_AVAX) revert InvalidAsset();
         Campaign storage s = campaigns[id];
         s.sponsor = msg.sender;
         s.merchantId = c.merchantId;
@@ -134,16 +158,27 @@ contract GrantManager {
         s.perTxCap = c.perTxCap;
         s.dailyCap = c.dailyCap;
         s.attestor = c.attestor;
+        s.asset = c.asset;
         emit CampaignCreated(id, msg.sender, c.merchantId);
     }
 
     function fund(bytes32 id, uint256 amount) external {
         Campaign storage c = campaigns[id];
         require(c.sponsor != address(0), "no campaign");
+        if (c.asset != ASSET_XSGD) revert WrongFundingMethod();
         if (amount == 0) revert ZeroAmount();
         require(xsgd.transferFrom(msg.sender, address(this), amount), "transferFrom failed");
         c.funded += amount;
-        emit Funded(id, amount, c.funded);
+        emit Funded(id, ASSET_XSGD, amount, c.funded);
+    }
+
+    function fundAvax(bytes32 id) external payable {
+        Campaign storage c = campaigns[id];
+        require(c.sponsor != address(0), "no campaign");
+        if (c.asset != ASSET_AVAX) revert WrongFundingMethod();
+        if (msg.value == 0) revert ZeroAmount();
+        c.funded += msg.value;
+        emit Funded(id, ASSET_AVAX, msg.value, c.funded);
     }
 
     function setPaused(bytes32 id, bool p) external {
@@ -153,12 +188,12 @@ contract GrantManager {
         emit CampaignPaused(id, p);
     }
 
-    function withdrawUnused(bytes32 id) external {
+    function withdrawUnused(bytes32 id) external nonReentrant {
         Campaign storage c = campaigns[id];
         if (msg.sender != c.sponsor) revert NotSponsor();
         uint256 free = c.funded - c.committed;
         c.funded -= free;
-        require(xsgd.transfer(c.sponsor, free), "transfer failed");
+        _transferAsset(c.asset, c.sponsor, free);
     }
 
     // ------------------------------------------------------------ issue grant
@@ -210,18 +245,35 @@ contract GrantManager {
      * ⚠️ Khoảng trống đã biết (§13.2): signer có thể nhận XSGD rồi không trả.
      *    Thiệt hại chặn ở perTxCap/dailyCap/released. Production cần escrow hai pha.
      */
-    function unwrap(uint256 grantId, address payTo, uint256 amount, bytes32 nonce) external {
+    function unwrap(uint256 grantId, address payTo, uint256 amount, bytes32 nonce) external nonReentrant {
         Grant storage g = grants[grantId];
         Campaign storage c = campaigns[g.campaignId];
+        if (c.asset != ASSET_XSGD) revert WrongFundingMethod();
+        _consume(grantId, g, c, amount);
+
+        // allowlist: nguồn sự thật là registry, KHÔNG phải challenge của merchant
+        if (!registry.isAllowed(g.merchantId, payTo)) revert MerchantNotAllowed();
+
+        require(xsgd.transfer(g.signer, amount), "transfer failed");
+        emit Unwrapped(grantId, g.projectId, payTo, amount, nonce);
+    }
+
+    /// AVAX campaigns are gas grants, not x402 merchant payments.
+    function claimGas(uint256 grantId, uint256 amount) external nonReentrant {
+        Grant storage g = grants[grantId];
+        Campaign storage c = campaigns[g.campaignId];
+        if (c.asset != ASSET_AVAX) revert WrongFundingMethod();
+        _consume(grantId, g, c, amount);
+        _transferAsset(ASSET_AVAX, g.signer, amount);
+        emit GasClaimed(grantId, g.projectId, g.signer, amount);
+    }
+
+    function _consume(uint256 grantId, Grant storage g, Campaign storage c, uint256 amount) internal {
         if (msg.sender != g.signer && msg.sender != g.owner) revert NotOwnerOfGrant();
         if (amount == 0) revert ZeroAmount();
         if (g.revoked) revert GrantRevokedErr();
         if (block.timestamp >= g.expiry) revert GrantExpired();
         if (c.paused) revert CampaignPausedErr();
-
-        // allowlist: nguồn sự thật là registry, KHÔNG phải challenge của merchant
-        if (!registry.isAllowed(g.merchantId, payTo)) revert MerchantNotAllowed();
-
         if (amount > c.perTxCap) revert OverPerTxCap();
 
         uint256 day = block.timestamp / 1 days;
@@ -234,9 +286,20 @@ contract GrantManager {
         }
         spentOnDay[grantId][day] += amount;
         g.spent += amount;
+    }
 
-        require(xsgd.transfer(g.signer, amount), "transfer failed");
-        emit Unwrapped(grantId, g.projectId, payTo, amount, nonce);
+    function _transferAsset(uint8 asset, address to, uint256 amount) internal {
+        if (asset == ASSET_XSGD) {
+            require(xsgd.transfer(to, amount), "transfer failed");
+            return;
+        }
+        if (asset != ASSET_AVAX) revert InvalidAsset();
+        (bool ok,) = payable(to).call{value: amount}("");
+        if (!ok) revert NativeTransferFailed();
+    }
+
+    function assetOfGrant(uint256 grantId) external view returns (uint8) {
+        return campaigns[grants[grantId].campaignId].asset;
     }
 
     // --------------------------------------------------------------- vesting

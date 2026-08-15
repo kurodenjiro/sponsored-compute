@@ -25,6 +25,8 @@ export interface GrantView {
   signer: `0x${string}`;
   /** allowlist payTo — lấy từ MerchantRegistry, KHÔNG lấy từ challenge */
   allowedPayTo: `0x${string}`[];
+  /** 0 = XSGD payment grant, 1 = native AVAX gas grant. */
+  asset: 0 | 1;
   total: bigint;
   released: bigint;
   spent: bigint;
@@ -72,6 +74,9 @@ export function checkpoint(input: CheckpointInput): Decision {
   if (grant.revoked) return deny('REVOKED', `Grant ${grant.grantId} đã bị sponsor thu hồi.`);
   if (now >= grant.expiry) {
     return deny('EXPIRED', `Grant hết hạn lúc ${new Date(grant.expiry * 1000).toISOString()}.`);
+  }
+  if (grant.asset !== 0) {
+    return deny('WRONG_ASSET', 'Grant này cấp AVAX cho gas; không thể dùng với pay_for_service/x402 XSGD.');
   }
 
   // --- Kiểm tra chính challenge: không tin bất cứ gì merchant gửi ---

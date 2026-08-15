@@ -19,7 +19,7 @@ import { listRepos, registryStoreMode, saveRepo, type SponsoredRepo } from '../.
 
 export const dynamic = 'force-dynamic';
 
-const fmt = (v: bigint) => (Number(v) / 1e6).toFixed(2);
+const fmt = (v: bigint, decimals = 6) => (Number(v) / 10 ** decimals).toFixed(decimals === 18 ? 4 : 2);
 
 function grantManagerFor(chainId: number) {
   const gm = (process.env.GRANT_MANAGER ?? getNetwork(chainId).grantManager) as `0x${string}` | undefined;
@@ -69,6 +69,7 @@ export async function POST(request: Request) {
       grantAmount: campaign.grantAmount.toString(),
       funded: campaign.funded.toString(),
       committed: campaign.committed.toString(),
+      asset: campaign.asset,
       tx: typeof body.tx === 'string' ? body.tx : undefined,
       createdAt: new Date().toISOString(),
     };
@@ -107,9 +108,11 @@ export async function GET() {
           funded: campaign.funded.toString(),
           committed: campaign.committed.toString(),
           grantAmount: campaign.grantAmount.toString(),
+          asset: campaign.asset,
           seatsLeft: Number(available / campaign.grantAmount),
-          grantAmountLabel: fmt(campaign.grantAmount),
-          availableLabel: fmt(available),
+          grantAmountLabel: fmt(campaign.grantAmount, campaign.asset === 1 ? 18 : 6),
+          availableLabel: fmt(available, campaign.asset === 1 ? 18 : 6),
+          symbol: campaign.asset === 1 ? 'AVAX' : 'XSGD',
           status: campaign.paused ? ('paused' as const) : ('open' as const),
         };
       } catch {

@@ -5,7 +5,7 @@ import { listRepos } from '../../../lib/registry-store';
 
 export const dynamic = 'force-dynamic';
 
-const fmt = (value: bigint) => (Number(value) / 1e6).toFixed(2);
+const fmt = (value: bigint, asset: 0 | 1) => (Number(value) / 10 ** (asset === 1 ? 18 : 6)).toFixed(asset === 1 ? 4 : 2);
 
 export async function GET() {
   const chainId = DEFAULT_CHAIN_ID;
@@ -32,12 +32,14 @@ export async function GET() {
         campaignId: platform.campaignId,
         chainId,
         grantAmount: campaign.grantAmount.toString(),
-        grantAmountLabel: fmt(campaign.grantAmount),
+        grantAmountLabel: fmt(campaign.grantAmount, campaign.asset),
         available: available.toString(),
-        availableLabel: fmt(available),
+        availableLabel: fmt(available, campaign.asset),
         seatsLeft: campaign.grantAmount > 0n ? Number(available / campaign.grantAmount) : 0,
-        perTxCapLabel: fmt(campaign.perTxCap),
-        dailyCapLabel: fmt(campaign.dailyCap),
+        perTxCapLabel: fmt(campaign.perTxCap, campaign.asset),
+        dailyCapLabel: fmt(campaign.dailyCap, campaign.asset),
+        asset: campaign.asset,
+        symbol: campaign.asset === 1 ? 'AVAX' : 'XSGD',
         status: campaign.paused ? 'paused' : available >= campaign.grantAmount ? 'open' : 'exhausted',
         repoUrl: repo?.repoUrl,
         repoSlug: repo?.repoSlug,

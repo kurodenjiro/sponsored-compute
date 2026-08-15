@@ -20,6 +20,8 @@ export type SponsoredRepo = {
   grantAmount: string;
   funded: string;
   committed: string;
+  /** 0 = XSGD, 1 = native AVAX */
+  asset: 0 | 1;
   tx?: string;
   createdAt: string;
 };
@@ -52,6 +54,7 @@ function repoRow(repo: SponsoredRepo) {
     grant_amount: repo.grantAmount,
     funded: repo.funded,
     committed: repo.committed,
+    asset: repo.asset,
     tx: repo.tx ?? null,
     created_at: repo.createdAt,
   };
@@ -68,6 +71,7 @@ function toRepo(row: any): SponsoredRepo {
     grantAmount: row.grant_amount,
     funded: row.funded,
     committed: row.committed,
+    asset: row.asset === 1 ? 1 : 0,
     tx: row.tx ?? undefined,
     createdAt: row.created_at,
   };

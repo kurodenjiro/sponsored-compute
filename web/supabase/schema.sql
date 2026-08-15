@@ -32,6 +32,7 @@ create table if not exists public.sponsored_compute_repos (
   grant_amount text not null,
   funded text not null,
   committed text not null,
+  asset integer not null default 0 check (asset in (0, 1)),
   tx text,
   created_at timestamptz not null default now()
 );
@@ -59,6 +60,8 @@ alter table public.sponsored_compute_grant_claims enable row level security;
 
 comment on table public.sponsored_compute_repos is
   'Repository → campaign lookup. Written by the sponsor console after the campaign is funded on-chain.';
+
+alter table public.sponsored_compute_repos add column if not exists asset integer not null default 0;
 comment on table public.sponsored_compute_grant_claims is
   'Developer Grant claims, verified against GrantManager before insertion.';
 

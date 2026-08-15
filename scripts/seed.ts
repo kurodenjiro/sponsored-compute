@@ -20,9 +20,10 @@ const dep = JSON.parse(readFileSync(`deployments/${net.chainId}.json`, 'utf8'));
 const GM_ABI = parseAbi([
   'function createCampaign(bytes32 id, (address sponsor,bytes32 merchantId,uint256 funded,uint256 committed,uint256 grantAmount,uint32 trancheCount,uint32 tranchePeriod,uint256 minSpendPerTranche,uint32 minDaysPerTranche,uint64 grantValidity,uint256 perTxCap,uint256 dailyCap,address attestor,bool paused) c)',
   'function fund(bytes32 id, uint256 amount)',
+  'function fundAvax(bytes32 id) payable',
   'function issueGrant(bytes32 campaignId, bytes32 projectId, address owner_, address signer_) returns (uint256)',
   'function grantOf(bytes32 projectId) view returns (uint256,bytes32,address,uint256,uint256,uint256,uint256,uint256,uint256,uint64,bool)',
-  'function campaigns(bytes32) view returns (address,bytes32,uint256,uint256,uint256,uint32,uint32,uint256,uint32,uint64,uint256,uint256,address,bool)',
+  'function campaigns(bytes32) view returns (address,bytes32,uint256,uint256,uint256,uint32,uint32,uint256,uint32,uint64,uint256,uint256,address,bool,uint8)',
 ]);
 const ERC20 = parseAbi([
   'function approve(address,uint256) returns (bool)',
@@ -132,6 +133,7 @@ async function main() {
         dailyCap: SGD('1'),
         attestor: '0x0000000000000000000000000000000000000000',
         paused: false,
+        asset: 0,
       }], ...GAS, gas: 400_000n,
     });
     await wait(h, 'createCampaign');

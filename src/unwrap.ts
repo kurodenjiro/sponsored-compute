@@ -16,6 +16,7 @@ import { getNetwork, DEFAULT_CHAIN_ID } from './config.js';
 
 const GM_ABI = parseAbi([
   'function unwrap(uint256 grantId, address payTo, uint256 amount, bytes32 nonce)',
+  'function claimGas(uint256 grantId, uint256 amount)',
   'function claimTranche(uint256 grantId)',
 ]);
 
@@ -102,6 +103,35 @@ export async function claimGrantTranche(opts: {
     if (r.status !== 'success') {
       return { ok: false, transaction: hash, error: 'claimTranche revert — usage hoặc thời gian chưa đủ' };
     }
+    return { ok: true, transaction: hash };
+  } catch (e: any) {
+    return { ok: false, error: e?.shortMessage ?? e?.message ?? String(e) };
+  }
+}
+
+/** Claim native AVAX from an AVAX campaign. Contract caps and vesting remain authoritative. */
+export async function claimGasFromGrant(opts: {
+  grantManager: `0x${string}`;
+  grantId: bigint;
+  amount: bigint;
+  chainId?: number;
+}): Promise<UnwrapResult> {
+  const chainId = opts.chainId ?? DEFAULT_CHAIN_ID;
+  const net = getNetwork(chainId);
+  const chain = chainId === 43114 ? avalanche : avalancheFuji;
+  const account = privateKeyToAccount(await agentKey());
+  const pub = createPublicClient({ chain, transport: http(net.rpc) });
+  const wallet = createWalletClient({ account, chain, transport: http(net.rpc) });
+  try {
+    const hash = await wallet.writeContract({
+      address: opts.grantManager,
+      abi: GM_ABI,
+      functionName: 'claimGas',
+      args: [opts.grantId, opts.amount],
+      ...GAS,
+    });
+    const receipt = await pub.waitForTransactionReceipt({ hash });
+    if (receipt.status !== 'success') return { ok: false, transaction: hash, error: 'claimGas reverted' };
     return { ok: true, transaction: hash };
   } catch (e: any) {
     return { ok: false, error: e?.shortMessage ?? e?.message ?? String(e) };
