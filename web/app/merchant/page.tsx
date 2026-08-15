@@ -23,11 +23,35 @@ const endpoint = (resource?: string) => { try { const url = new URL(resource ?? 
 
 export default function MerchantPage() {
   const [data, setData] = useState<Data | null>(null);
+  const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    const load = () => fetch('/api/history').then((response) => response.json()).then(setData).catch(() => {});
+    let active = true;
+    let controller: AbortController | undefined;
+    const load = async () => {
+      controller?.abort();
+      controller = new AbortController();
+      const timeout = window.setTimeout(() => controller?.abort(), 8000);
+      try {
+        const response = await fetch('/api/history', { cache: 'no-store', signal: controller.signal });
+        if (!response.ok) {
+          const body = await response.json().catch(() => null) as { error?: string } | null;
+          throw new Error(body?.error ?? `Ledger request failed (${response.status})`);
+        }
+        const next = await response.json() as Data;
+        if (active) { setData(next); setError(null); }
+      } catch (cause) {
+        if (!active) return;
+        const message = cause instanceof DOMException && cause.name === 'AbortError'
+          ? 'Ledger request timed out. Check the API and Supabase configuration.'
+          : cause instanceof Error ? cause.message : 'Unable to load the merchant ledger.';
+        setError(message);
+      } finally {
+        window.clearTimeout(timeout);
+      }
+    };
     load();
-    const timer = window.setInterval(load, 1500);
-    return () => window.clearInterval(timer);
+    const timer = window.setInterval(load, 5000);
+    return () => { active = false; controller?.abort(); window.clearInterval(timer); };
   }, []);
 
   const summary = useMemo(() => {
@@ -39,7 +63,7 @@ export default function MerchantPage() {
     };
   }, [data]);
 
-  if (!data) return <main className="loading">loading merchant ledger…</main>;
+  if (!data) return <main className="loading"><div><b>{error ? 'merchant ledger unavailable' : 'loading merchant ledger…'}</b>{error && <><p>{error}</p><button onClick={() => window.location.reload()}>retry</button></>}</div><style jsx>{` .loading>div{text-align:center;max-width:520px;padding:32px}.loading b{font:400 28px Georgia,serif;color:#f4f6ed}.loading p{margin:14px 0 22px;color:#9ba697;font:12px/1.6 ui-monospace,monospace}.loading button{padding:10px 16px;border:1px solid #caff4b;background:#caff4b;color:#10140f;font:800 10px ui-monospace,monospace;text-transform:uppercase;cursor:pointer}`}</style></main>;
 
   return <main className="merchant">
     <SiteNav status={<span className={`site-nav-pill ${data.evil ? 'warn' : ''}`}><i /> {data.evil ? 'UNTRUSTED CHALLENGE' : `MERCHANT · CHAIN ${data.net.chainId}`}</span>} />
