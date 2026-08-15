@@ -70,6 +70,8 @@ Every on-chain id (`merchantId`, `campaignId`) is derived from the repo URL itse
 3. Approve + fund XSGD
 4. Get the install command — signs nothing, just re-reads the chain and generates the command
 
+The merchant a Grant can pay is the repo's own sponsor, not an arbitrary third party: `merchantId` is derived from the sponsor slug (the repo owner), so a campaign funded by `github.com/acme/widgets` only unlocks payments to `acme`'s own `payTo` — `pay_for_service` against a *different* merchant's API is correctly rejected by the checkpoint (`MERCHANT_NOT_ALLOWED`). Model this as "fund your own infra costs for contributors," not "fund a voucher redeemable anywhere."
+
 Merchants are **auto-approved** on testnet (the server signs with the `MerchantRegistry` owner key, see `web/app/api/registry/merchant`) so the demo doesn't stall on manual review. This is **disabled by default on mainnet** unless `SPONSORED_AUTO_APPROVE_MERCHANTS=1` is set explicitly — the allowlist exists to stop an attacker from registering their own wallet as a merchant and `unwrap`-ing a Grant straight to it (see `docs/SPONSORED-COMPUTE.md` §9).
 
 The lower-level scripts (`contracts/scripts/register.ts`, `scripts/seed.ts`, `npm run cli -- init`) still work for seeding data or running outside the UI.
