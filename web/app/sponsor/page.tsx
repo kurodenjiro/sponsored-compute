@@ -12,10 +12,10 @@
  * ra thẳng chuỗi cài, không ký gì cả.
  */
 
-import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
+import { SiteNav } from '../../components/site-nav';
 import { avalancheFuji } from 'viem/chains';
 import { createPublicClient, createWalletClient, custom, http, parseUnits } from 'viem';
 import { campaignIdOf, capsFor, formatAmount, merchantIdOf, parseRepoUrl, sponsorSlugOf, type RepoRef } from '../../../src/campaign.js';
@@ -291,7 +291,7 @@ export default function SponsorPage() {
   };
 
   return <main className="sponsor">
-    <nav><Link href="/" className="brand">sponsored<span>compute</span></Link><Link href="/merchant">Merchant dashboard ↗</Link></nav>
+    <SiteNav />
     <header>
       <p>SPONSOR CONSOLE · ONE BUTTON AT A TIME</p>
       <h1>Fund a repo.<br /><em>Not a wallet.</em></h1>
@@ -394,7 +394,7 @@ export default function SponsorPage() {
       </div>
     </section>}
 
-    <style jsx>{`:global(body){margin:0;background:#0d0f0b;color:#f4f6ed;font-family:'Helvetica Neue',Helvetica,sans-serif}.sponsor{min-height:100vh;padding:0 4.5vw 90px;background:radial-gradient(ellipse 72% 42% at 50% 0%,#21331c 0%,#0d0f0b 68%)}nav{height:76px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #354031;font:11px ui-monospace,monospace;letter-spacing:.08em}nav a{color:#c8ff45;text-decoration:none}.brand{font:800 17px 'Helvetica Neue';letter-spacing:-.07em;color:#f4f6ed!important}.brand span,header p,.form>p,.handoff p:first-child{color:#c8ff45}header{padding:82px 0 54px}header p,.form>p,.handoff p:first-child{font:700 11px ui-monospace,monospace;letter-spacing:.12em}header h1{font-size:clamp(50px,7.5vw,96px);line-height:.82;letter-spacing:-.08em;margin:16px 0 26px}header em,.handoff em{font-style:normal;color:#c8ff45}header>span{color:#c8ff45;font:10px ui-monospace,monospace}
+    <style jsx>{`:global(body){margin:0;background:#0d0f0b;color:#f4f6ed;font-family:'Helvetica Neue',Helvetica,sans-serif}.sponsor{min-height:100vh;padding:0 4.5vw 90px;background:radial-gradient(ellipse 72% 42% at 50% 0%,#21331c 0%,#0d0f0b 68%)}header p,.form>p,.handoff p:first-child{color:#c8ff45}header{padding:82px 0 54px}header p,.form>p,.handoff p:first-child{font:700 11px ui-monospace,monospace;letter-spacing:.12em}header h1{font-size:clamp(50px,7.5vw,96px);line-height:.82;letter-spacing:-.08em;margin:16px 0 26px}header em,.handoff em{font-style:normal;color:#c8ff45}header>span{color:#c8ff45;font:10px ui-monospace,monospace}
 .board{display:grid;grid-template-columns:1fr .9fr;gap:1px;background:#3d4738;border:1px solid #3d4738}.board>div{background:#151a13;padding:30px}
 .form label{display:block;color:#aeb8a8;font:11px ui-monospace,monospace;letter-spacing:.05em;margin:24px 0 0}.form label:first-of-type{margin-top:18px}.locked{float:right;color:#c8ff45;font-style:normal;font-size:10px}.form input{display:block;width:100%;padding:13px;background:#0e120d;border:1px solid #46523e;color:#f4f6ed;font:13px ui-monospace,monospace;outline:none}.form input:focus{border-color:#c8ff45;box-shadow:0 0 0 3px #c8ff4522}.form input:disabled{opacity:.6;cursor:not-allowed}
 .chips{display:flex;gap:6px;margin-top:8px}.chips button{padding:6px 11px;border:1px solid #46523e;background:#0e120d;color:#8b9784;font:11px ui-monospace,monospace;cursor:pointer}.chips button:hover{border-color:#c8ff45;color:#c8ff45}.chips button.on{background:#c8ff45;border-color:#c8ff45;color:#10140d;font-weight:700}

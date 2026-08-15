@@ -9,6 +9,75 @@
   --sc-accent: #c8ff45;
 }
 
+/* Shared header across /, /sponsor, /merchant — one design instead of three. */
+.site-nav {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  height: 72px;
+  padding: 0 4.5vw;
+  background: rgba(13, 15, 11, .78);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border-bottom: 1px solid var(--sc-border);
+  font: 11px ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .08em;
+}
+.site-nav-brand {
+  font: 800 17px 'Helvetica Neue', sans-serif;
+  letter-spacing: -.07em;
+  color: var(--sc-ink);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.site-nav-brand span { color: var(--sc-accent); }
+.site-nav-links { display: flex; align-items: center; gap: 4px; margin: 0 auto 0 40px; }
+.site-nav-links a {
+  position: relative;
+  padding: 9px 6px;
+  color: #9aa494;
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: color .15s ease;
+}
+.site-nav-links a::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 5px;
+  height: 1px;
+  background: var(--sc-accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform .18s ease;
+}
+.site-nav-links a:hover { color: var(--sc-ink); }
+.site-nav-links a:hover::after { transform: scaleX(1); }
+.site-nav-links a.on { color: var(--sc-accent); }
+.site-nav-links a.on::after { transform: scaleX(1); }
+.site-nav-status { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+.site-nav-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border: 1px solid var(--sc-border-strong);
+  border-radius: 999px;
+  background: #141a12;
+  color: #aeb8a8;
+  text-transform: uppercase;
+}
+.site-nav-pill i { width: 6px; height: 6px; border-radius: 999px; background: var(--sc-accent); box-shadow: 0 0 10px var(--sc-accent); flex: none; }
+.site-nav-pill.warn { border-color: #6b3a33; color: #ffb3a8; }
+.site-nav-pill.warn i { background: #ff8e83; box-shadow: 0 0 10px #ff8e83; }
+@media (max-width: 850px) {
+  .site-nav-links { display: none; }
+  .site-nav { padding: 0 20px; height: 64px; }
+}
+
 .app-content { opacity: 0; transition: opacity .34s ease; }
 .app-content-ready { opacity: 1; }
 .app-loader, .route-loader {
@@ -138,10 +207,17 @@
   gap: 72px;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 40px 34px 145px;
+  padding: 40px 34px 100px;
 }
 .site .install h2 { margin: 18px 0; font-size: clamp(46px, 5.5vw, 72px); line-height: .86; letter-spacing: -.075em; }
-.site .install > div > p:not(.eyebrow) { max-width: 340px; color: var(--sc-muted); line-height: 1.6; }
+.site .install > div > p:not(.eyebrow) { max-width: 400px; color: var(--sc-muted); line-height: 1.6; }
+.site .install-steps { display: flex; flex-direction: column; gap: 10px; margin: 28px 0; padding: 0; list-style: none; font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; color: #cdd6c6; }
+.site .install-steps li { display: flex; align-items: center; gap: 12px; }
+.site .install-steps b { display: grid; place-items: center; width: 22px; height: 22px; flex: none; border: 1px solid var(--sc-border-strong); border-radius: 999px; color: var(--sc-accent); font-size: 10px; }
+.site .install-steps code { color: var(--sc-accent); }
+.site .install-note { max-width: 340px; margin: 0; color: #8b9784; font-size: 13px; line-height: 1.6; }
+.site .install-note a { color: var(--sc-accent); text-decoration: none; }
+.site .install-note a:hover { text-decoration: underline; }
 .site .install-card { border: 1px solid #42503c; background: #11150f; box-shadow: 10px 10px #24321f; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .site .install-card header { display: flex; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #354031; color: #8d9a86; font-size: 10px; letter-spacing: .08em; }
 .site .install-card header span:last-child { color: var(--sc-accent); }
@@ -194,6 +270,6 @@
   .thread .composer { bottom: -20px; margin: auto -20px -20px; padding: 12px 20px 20px; }
   .thread .composer textarea { padding-right: 14px; }
   .thread .composer small { position: static; display: block; margin-top: 7px; }
-  .site .install { grid-template-columns: 1fr; gap: 32px; padding: 30px 20px 90px; }
+  .site .install { grid-template-columns: 1fr; gap: 32px; padding: 20px 20px 70px; }
   .site .install-card { box-shadow: 6px 6px #24321f; }
 }

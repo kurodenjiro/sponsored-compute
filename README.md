@@ -1,29 +1,29 @@
 # Sponsored Compute
 
-XSGD tài trợ có ràng buộc mục đích cho AI coding agent: sponsor ký quỹ, project nhận Grant, agent chỉ có thể trả cho merchant đã duyệt qua x402.
+Purpose-bound XSGD credits for AI coding agents: sponsors fund a pool, projects receive a Grant, and the agent can only pay merchants approved through x402.
 
-> **Demo chain:** Avalanche Fuji (`43113`). Đây là PBM-compatible subset, không phải full ERC-7291.
+> **Demo chain:** Avalanche Fuji (`43113`). This is a PBM-compatible subset, not a full ERC-7291 implementation.
 
-## Tài liệu
+## Docs
 
-- [Workflow thanh toán](docs/WORKFLOW.md)
-- [Runbook demo](docs/DEMO.md)
-- [Kiến trúc và quyết định](docs/SPONSORED-COMPUTE.md)
-- [Nghiên cứu và so sánh phương án](docs/RESEARCH.md)
+- [Payment workflow](docs/WORKFLOW.md)
+- [Demo runbook](docs/DEMO.md)
+- [Architecture and decisions](docs/SPONSORED-COMPUTE.md)
+- [Research and options considered](docs/RESEARCH.md)
 
-## Kiến trúc
+## Architecture
 
 ```text
-Sponsor ── XSGD ──> GrantManager ── unwrap có điều kiện ──> agent EOA
+Sponsor ── XSGD ──> GrantManager ── conditional unwrap ──> agent EOA
                               │                                  │
                        MerchantRegistry <── allowlist       EIP-3009 x402
                               │                                  │
                          merchant payTo <── settlement relay ─── platform API
 ```
 
-Checkpoint chạy bên trong `pay_for_service`; MCP không expose `unwrap`, `sign` hay policy bypass.
+The checkpoint runs inside `pay_for_service`; the MCP server never exposes `unwrap`, `sign`, or a policy bypass.
 
-## Chạy demo
+## Running the demo
 
 ```bash
 npm install
@@ -37,67 +37,74 @@ cp .env.example .env.local  # add the relayer key for the AVAX-only wallet
 npm run dev
 ```
 
-Một deployment phục vụ toàn bộ demo tại `http://localhost:4030`:
+One deployment serves the whole demo at `http://localhost:4030`:
 
 - `/` — landing + prompt walkthrough
 - `/sponsor` — sponsor console
 - `/merchant` — merchant dashboard + settlement ledger
-- `/api/v1/query` — x402 API thu phí
+- `/api/v1/query` — x402-metered API
 
-Chạy thêm hai merchant của demo trong terminal riêng:
+Run the two extra demo merchants in separate terminals:
 
 ```bash
 cd web && npm run dev:neon  # NeonLite :4032
-cd web && npm run dev:evil  # merchant độc :4031
+cd web && npm run dev:evil  # malicious merchant :4031
 ```
 
-MCP cục bộ dùng `.mcp.json`. Năm tool:
+The local MCP server is declared in `.mcp.json`. Five tools:
 
 1. `list_sponsored_platforms(category)`
-2. `check_project_sponsorship()` — read-only, đọc `sponsored.json` rồi verify campaign on-chain
-3. `claim_sponsored_grant()` — phát Grant cho ví hiện tại; chỉ gọi khi user yêu cầu
+2. `check_project_sponsorship()` — read-only; reads `sponsored.json` and verifies the campaign on-chain
+3. `claim_sponsored_grant()` — issues a Grant for the current wallet; call only when the user asks
 4. `get_grant_status()`
 5. `pay_for_service(url, max_amount)`
 
 ## Sponsor
 
-Luồng chính là `/sponsor` trong `web/`: **dán repo GitHub → fund XSGD → nhận một dòng lệnh để đưa vào repo**. Sponsor không nhập ví developer — lúc fund thì chưa biết ai sẽ build; Grant phát ra sau, lúc developer claim.
+The main flow is `/sponsor` in `web/`: **paste a GitHub repo → fund XSGD → get one line to drop into the repo**. Sponsors never enter a developer's wallet — at funding time nobody knows who will build yet; the Grant is issued later, when a developer claims.
 
-Mọi id on-chain (`merchantId`, `campaignId`) suy ra từ chính URL repo (`src/campaign.ts`), nên hai người dán cùng một repo luôn ra cùng một campaign. Trang tự đọc trạng thái Fuji và tuần tự hoá thành một nút:
+Every on-chain id (`merchantId`, `campaignId`) is derived from the repo URL itself (`src/campaign.ts`), so two people who paste the same repo always land on the same campaign. The page reads Fuji state and sequences itself into one button:
 
-1. Kết nối ví (nó là `payTo` của merchant và sponsor của campaign)
-2. Tạo campaign — cỡ Grant mỗi developer khoá lúc này
+1. Connect a wallet (it becomes the merchant `payTo` and the campaign sponsor)
+2. Create the campaign — the per-developer Grant size is locked in at this point
 3. Approve + fund XSGD
-4. Lấy chuỗi cài — không ký gì, chỉ đọc lại chain rồi sinh lệnh
+4. Get the install command — signs nothing, just re-reads the chain and generates the command
 
-Merchant được **duyệt tự động** trên testnet (server ký bằng khoá chủ `MerchantRegistry`, xem `web/app/api/registry/merchant`) để demo không kẹt ở bước kiểm duyệt thủ công. Mặc định **tắt trên mainnet** trừ khi đặt `SPONSORED_AUTO_APPROVE_MERCHANTS=1` — allowlist tồn tại để chặn attacker tự đăng ký ví mình làm merchant rồi `unwrap` Grant về đó (xem `docs/SPONSORED-COMPUTE.md` §9).
+Merchants are **auto-approved** on testnet (the server signs with the `MerchantRegistry` owner key, see `web/app/api/registry/merchant`) so the demo doesn't stall on manual review. This is **disabled by default on mainnet** unless `SPONSORED_AUTO_APPROVE_MERCHANTS=1` is set explicitly — the allowlist exists to stop an attacker from registering their own wallet as a merchant and `unwrap`-ing a Grant straight to it (see `docs/SPONSORED-COMPUTE.md` §9).
 
-Các bước cấp thấp hơn (`contracts/scripts/register.ts`, `scripts/seed.ts`, `npm run cli -- init`) vẫn dùng được để seed dữ liệu hoặc chạy ngoài UI.
+The lower-level scripts (`contracts/scripts/register.ts`, `scripts/seed.ts`, `npm run cli -- init`) still work for seeding data or running outside the UI.
 
 ## Developer onboarding
 
 ```bash
-git clone <repo được tài trợ>
+git clone <sponsored repo>
 cd <repo>
 ```
 
-Mở Claude Code — `.mcp.json` tự nạp MCP server — rồi hỏi:
+Open Claude Code — `.mcp.json` loads the MCP server automatically — then ask:
 
-> dự án này có tài trợ không?
+> does this project have sponsorship?
 
-Agent gọi `check_project_sponsorship` (đọc `sponsored.json`, verify on-chain, không ký gì), rồi hỏi trước khi `claim_sponsored_grant`. Claim ghi `projectId` về `sponsored.json` và báo cho registry để tra cứu — cả hai đều **best-effort**, Grant thật nằm trên chain bất kể registry có ghi được hay không.
+The agent calls `check_project_sponsorship` (reads `sponsored.json`, verifies on-chain, signs nothing), then asks before calling `claim_sponsored_grant`. Claiming writes `projectId` back to `sponsored.json` and reports the claim to the registry for lookup — both are **best-effort**; the real Grant lives on-chain regardless of whether the registry write succeeds.
 
-Chạy tay bằng CLI thì tương đương:
+The install command a sponsor pastes into a repo looks like this — `npx --package` targets the GitHub repo directly, since the package isn't on npm yet (`SPONSORED_CLI_SPEC` / `SPONSORED_MCP_SPEC` in `web/.env.local` control this; see `.env.example`):
+
+```bash
+npx -y --package github:kurodenjiro/sponsored-compute sponsored-compute init \
+  --campaign 0x… --sponsor <slug> --repo <repo-url> --chain 43113
+```
+
+Running it from a local clone is equivalent:
 
 ```bash
 npm run cli -- init --campaign 0x… --sponsor <slug> --repo <repo-url> --chain 43113
-npm run cli -- sponsorship         # đọc trạng thái, không ký
-npm run cli -- claim-grant         # phát Grant cho ví hiện tại
+npm run cli -- sponsorship         # read status, signs nothing
+npm run cli -- claim-grant         # issue a Grant for the current wallet
 ```
 
-Lệnh `init` ghi `sponsored.json` và `.mcp.json`; không ghi private key, API key hay ví developer. Contract từ chối một `projectId` đã từng nhận Grant — mỗi ví một Grant, fork lại không nhân bản được tiền.
+`init` writes `sponsored.json` and `.mcp.json`; it never writes a private key, API key, or developer wallet. The contract rejects a `projectId` that has already received a Grant — one Grant per wallet, so forking a repo can't clone the money.
 
-Sau khi SupaDB có usage đủ 0.30 XSGD, developer có thể xin tranche kế tiếp — khác với `claim-grant` (phát Grant lần đầu), lệnh `claim` ở đây mở tranche tiếp theo của một Grant đã tồn tại:
+Once SupaDB usage reaches 0.30 XSGD, a developer can request the next tranche — different from `claim-grant` (issuing a Grant for the first time), the `claim` command here opens the next tranche of a Grant that already exists:
 
 ```bash
 CHAIN_ID=43113 GRANT_MANAGER=0x3230B5666d8De86d3079D07bb45A7075A1d0b043 \
@@ -105,23 +112,23 @@ PROJECT_ID=0xb34e1d43700c753c79fa98a98c434b921d9d3467e3f07f78ada83890ab8162bc \
 npm run cli -- claim
 ```
 
-Đã xác minh trên Fuji: transaction
+Verified on Fuji: transaction
 [`0xb7b03fa8…c387c`](https://testnet.snowtrace.io/tx/0xb7b03fa8d4dde103d5daaf9584f7924b72e9974c55951dae239901f6c29c387c)
-nhả tranche 2, nâng số dư đã vest của SupaDB Grant từ 0.50 lên 1.00 XSGD.
+released tranche 2, raising the SupaDB Grant's vested balance from 0.50 to 1.00 XSGD.
 
-## Cảnh demo chặn
+## Blocked-demo scene
 
 ```bash
-# merchant độc: challenge có prompt injection và đòi 30 XSGD
+# malicious merchant: the challenge carries a prompt-injection instruction and demands 30 XSGD
 cd web && npm run dev:evil
 ```
 
-Gọi endpoint độc qua `pay_for_service` phải bị checkpoint từ chối trước `unwrap`: sai `payTo`, vượt `max_amount`/per-tx cap. `npm run build` và `npm test` bao gồm giới hạn merchant, vesting, expiry, revoke, replay policy và binding authorization vào đúng invoice.
+Calling the malicious endpoint through `pay_for_service` must be rejected by the checkpoint before `unwrap`: wrong `payTo`, over `max_amount`/per-tx cap. `npm run build` and `npm test` cover the merchant allowlist, vesting, expiry, revoke, replay policy, and binding the authorization to the exact invoice.
 
-## Cần do người vận hành cung cấp
+## Operator-provided requirements
 
-- AVAX Fuji cho signer (unwrap) và self-relayer (settlement).
-- XSGD Fuji cho sponsor nạp campaign.
-- Private key **chỉ** cho self-relayer trong `web/.env.local`; không commit file này.
-- Self-relay là provider mặc định đã E2E với merchant `payTo` hiện tại. `0xgasless` chỉ nên bật sau khi verify thành công với đúng XSGD/Fuji/recipient; public facilitator hiện từ chối SupaDB demo recipient và docs không công bố quy trình whitelist.
-- Ví owner của `MerchantRegistry` để duyệt merchant mới, trừ khi dùng auto-approve testnet (`RELAYER_PRIVATE_KEY` phải là chính ví owner đó; đặt `SPONSORED_AUTO_APPROVE_MERCHANTS=0` để tắt).
+- AVAX on Fuji for the signer (unwrap) and the self-relayer (settlement).
+- XSGD on Fuji for sponsors to fund campaigns.
+- A private key **only** for the self-relayer, in `web/.env.local`; never commit this file.
+- Self-relay is the default provider, already E2E-verified against the current merchant `payTo`. Only enable `0xgasless` after verifying it end-to-end with the exact XSGD/Fuji/recipient combination — the public facilitator currently rejects the SupaDB demo recipient and its docs don't publish a whitelisting process.
+- The `MerchantRegistry` owner wallet, to approve new merchants — unless using the testnet auto-approve path (`RELAYER_PRIVATE_KEY` must then be that same owner wallet; set `SPONSORED_AUTO_APPROVE_MERCHANTS=0` to turn it off).
