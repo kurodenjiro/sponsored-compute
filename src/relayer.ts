@@ -78,16 +78,16 @@ async function relayerKey(): Promise<`0x${string}`> {
     const { Entry } = await import(/* webpackIgnore: true */ '@napi-rs/keyring');
     const entry = new Entry(SERVICE, ACCOUNT);
     let pk: string | null = null;
-    try { pk = entry.getPassword(); } catch { /* chưa có */ }
+    try { pk = entry.getPassword(); } catch { /* none yet */ }
     if (!pk) {
       pk = generatePrivateKey();
       entry.setPassword(pk);
-      console.error(`[relayer] ví relayer đã TẠO MỚI: ${privateKeyToAccount(pk as `0x${string}`).address}`);
-      console.error('[relayer] ⚠️  nạp một ít AVAX vào ví này để trả gas settle');
+      console.error(`[relayer] relayer wallet CREATED: ${privateKeyToAccount(pk as `0x${string}`).address}`);
+      console.error('[relayer] warning: fund this wallet with a little AVAX to pay settlement gas');
     }
     return pk as `0x${string}`;
   } catch {
-    throw new Error('Không có keychain và không có RELAYER_PRIVATE_KEY');
+    throw new Error('No keychain and no RELAYER_PRIVATE_KEY');
   }
 }
 

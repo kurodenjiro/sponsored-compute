@@ -109,17 +109,19 @@ export class LocalKeyringSigner implements Signer {
 
   static async load(opts: { quiet?: boolean } = {}): Promise<LocalKeyringSigner> {
     const found = await agentPrivateKey({ create: true });
-    if (!found) throw new Error('không lấy được khoá agent');
+    if (!found) throw new Error('could not obtain an agent key');
     const { pk, kind: storeKind, created } = found;
     const s = new LocalKeyringSigner(storeKind);
     s.account = privateKeyToAccount(pk);
 
+    // This runs inside the MCP server process, so it prints on every tool
+    // call that touches the wallet — an agent-visible line, not just a CLI
+    // one. Print the ADDRESS only, never the key.
     if (!opts.quiet) {
-      const tag = created ? 'đã TẠO MỚI' : 'đã nạp';
-      // in ĐỊA CHỈ, không bao giờ in khoá
-      console.error(`[signer] ví agent ${tag}: ${s.account.address}  (lưu ở: ${storeKind})`);
+      const tag = created ? 'created' : 'loaded';
+      console.error(`[signer] agent wallet ${tag}: ${s.account.address}  (stored: ${storeKind})`);
       if (storeKind.startsWith('file')) {
-        console.error(`[signer] ⚠️  không tìm thấy OS keychain — dùng ${FALLBACK_FILE}`);
+        console.error(`[signer] warning: no OS keychain found — using ${FALLBACK_FILE}`);
       }
     }
     return s;
@@ -132,12 +134,12 @@ export class LocalKeyringSigner implements Signer {
   }
 }
 
-/** --wallet=crossmint lắp vào đây khi §0 câu 6 có đáp án. */
+/** --wallet=crossmint slots in here once §0 question 6 has an answer. */
 export async function getSigner(kind = process.env.WALLET_KIND ?? 'local'): Promise<Signer> {
   if (kind !== 'local') {
     throw new Error(
-      `wallet="${kind}" chưa hỗ trợ. Crossmint là ERC-4337 smart account → không ký được ` +
-      `EIP-3009 cho XSGD (XSGD thiếu ERC-1271). Xem docs/SPONSORED-COMPUTE.md §2.`,
+      `wallet="${kind}" is not supported. Crossmint is an ERC-4337 smart account and cannot sign ` +
+      'EIP-3009 for XSGD (XSGD lacks ERC-1271). See docs/SPONSORED-COMPUTE.md §2.',
     );
   }
   return LocalKeyringSigner.load();
