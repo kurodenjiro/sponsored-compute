@@ -5,13 +5,12 @@
  *   - asset tuỳ ý (XSGD) với EIP-712 domain riêng
  *   - ATOMIC CLAIM chống replay (x402 Attack II)
  *
- * Settle: TỰ SUBMIT lên chain, không qua facilitator.
- * Lý do: facilitator công khai của 0xGasless áp recipient allowlist cho XSGD
- * (chỉ cho payTo = ví StraitsX) ở CẢ /verify lẫn /settle. Nhưng
- * transferWithAuthorization là hàm public trên contract XSGD — ai submit cũng được.
+ * Settle: self-relay là mặc định hiện tại. 0xGasless có thể bật sau khi
+ * merchant payTo được whitelist; nếu không facilitator sẽ từ chối recipient.
  */
 
 import { getNetwork } from '../../src/config.js';
+import { settleWithFacilitator } from '../../src/pay.js';
 import { settleDirect } from '../../src/relayer.js';
 
 export const EVIL = process.env.EVIL === '1';
@@ -25,6 +24,7 @@ export const PAY_TO = (EVIL
 export const PRICE = EVIL ? '30000000' : process.env.PRICE_ATOMIC ?? '120000'; // 30.00 vs 0.12 SGD
 
 export const MERCHANT_NAME = EVIL ? 'FreeDB (merchant độc)' : process.env.MERCHANT_NAME ?? 'SupaDB';
+const SETTLEMENT_PROVIDER = process.env.X402_SETTLEMENT_PROVIDER ?? 'self-relay';
 
 /** Nhật ký thanh toán — hiện lên UI cho demo. */
 export type Entry = {
@@ -129,12 +129,35 @@ export async function handlePayment(req: Request, resource: string): Promise<Han
     };
   }
 
-  const out = await settleDirect(challenge(resource).accepts[0] as any, auth, sig, net.chainId);
+  const requirement = challenge(resource).accepts[0] as any;
+  const via0xGasless = SETTLEMENT_PROVIDER === '0xgasless';
+  let status: number;
+  let raw: unknown;
+  let out: {
+    success?: boolean;
+    transaction?: `0x${string}`;
+    payer?: `0x${string}`;
+    errorReason?: string;
+    invalidReason?: string;
+    error?: string;
+  };
+  if (via0xGasless) {
+    const settled = await settleWithFacilitator(requirement, auth, sig, net.chainId);
+    status = settled.status;
+    raw = settled.body;
+    out = settled.body as typeof out;
+  } else {
+    const settled = await settleDirect(requirement, auth, sig, net.chainId);
+    status = settled.success ? 200 : 500;
+    raw = settled;
+    out = settled;
+  }
 
-  if (!out.success) {
+  if (status !== 200 || !out?.success || !out.transaction || !out.payer) {
     claimed.delete(`${payId}:${resource}`); // settle hỏng → trả lại claim
-    log.push({ at: Date.now(), ok: false, amount: PRICE, payer: auth.from, error: out.error });
-    return { kind: '402-failed', body: { error: 'SETTLE_FAILED', detail: out.error } };
+    const detail = out?.errorReason ?? out?.invalidReason ?? out?.error ?? JSON.stringify(raw);
+    log.push({ at: Date.now(), ok: false, amount: PRICE, payer: auth.from, error: detail });
+    return { kind: '402-failed', body: { error: 'SETTLE_FAILED', detail } };
   }
 
   log.push({
@@ -149,10 +172,7 @@ export async function handlePayment(req: Request, resource: string): Promise<Han
       paid: PRICE,
       tx: `${net.explorer}/tx/${out.transaction}`,
     },
-    // blockNumber là bigint — JSON.stringify không serialize được nếu không có replacer
-    header: Buffer.from(
-      JSON.stringify(out, (_k, v) => (typeof v === 'bigint' ? v.toString() : v)),
-    ).toString('base64'),
+    header: Buffer.from(JSON.stringify(out)).toString('base64'),
   };
 }
 

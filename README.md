@@ -11,7 +11,7 @@ Sponsor ── XSGD ──> GrantManager ── unwrap có điều kiện ──
                               │                                  │
                        MerchantRegistry <── allowlist       EIP-3009 x402
                               │                                  │
-                         merchant payTo <── self-relay ─── platform API
+                         merchant payTo <── settlement relay ─── platform API
 ```
 
 Checkpoint chạy bên trong `pay_for_service`; MCP không expose `unwrap`, `sign` hay policy bypass.
@@ -25,7 +25,7 @@ npm run address
 npm run balance
 
 cd platform-demo
-cp .env.example .env.local  # điền RELAYER_PRIVATE_KEY của ví chỉ giữ AVAX
+cp .env.example .env.local  # điền relayer key của ví chỉ giữ AVAX
 npm install
 npm run dev
 ```
@@ -93,7 +93,8 @@ Gọi endpoint độc qua `pay_for_service` phải bị checkpoint từ chối t
 
 ## Cần do người vận hành cung cấp
 
-- AVAX Fuji cho signer (unwrap) và relayer (settlement).
+- AVAX Fuji cho signer (unwrap) và self-relayer (settlement).
 - XSGD Fuji cho sponsor nạp campaign.
-- Private key **chỉ** cho relayer trong `platform-demo/.env.local`; không commit file này.
+- Private key **chỉ** cho self-relayer trong `platform-demo/.env.local`; không commit file này.
+- 0xGasless có thể thay relayer bằng `X402_SETTLEMENT_PROVIDER=0xgasless` sau khi họ whitelist merchant `payTo` cho XSGD. Hiện Fuji từ chối SupaDB demo recipient chưa whitelist.
 - Ví owner của `MerchantRegistry` để duyệt merchant mới.
