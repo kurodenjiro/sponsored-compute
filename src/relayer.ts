@@ -172,7 +172,7 @@ export async function settleDirect(
   try {
     account = privateKeyToAccount(await relayerKey());
   } catch (e: any) {
-    return { success: false, payer: auth.from, error: `Cấu hình relayer hỏng: ${e?.message ?? String(e)}` };
+    return { success: false, payer: auth.from, error: `Relayer misconfigured: ${e?.message ?? String(e)}` };
   }
 
   const pub = createPublicClient({ chain, transport: http(net.rpc) });
@@ -207,10 +207,10 @@ export async function settleDirect(
     });
   } catch {
     // Chữ ký dị dạng là lỗi của client, không phải lỗi server.
-    return { success: false, payer: auth.from, error: 'Chữ ký không đọc được: sai định dạng ECDSA' };
+    return { success: false, payer: auth.from, error: 'Signature is unreadable: malformed ECDSA' };
   }
   if (recovered.toLowerCase() !== auth.from.toLowerCase()) {
-    return { success: false, payer: auth.from, error: `Chữ ký không khớp: recover ra ${recovered}` };
+    return { success: false, payer: auth.from, error: `Signature mismatch: recovered ${recovered}` };
   }
 
   // ② nonce đã dùng chưa — tránh tốn gas cho tx chắc chắn revert
@@ -220,7 +220,7 @@ export async function settleDirect(
     args: [auth.from, auth.nonce],
   });
   if (used) {
-    return { success: false, payer: auth.from, error: 'Nonce đã được dùng (replay hoặc đã settle)' };
+    return { success: false, payer: auth.from, error: 'Nonce already used (replay, or already settled)' };
   }
 
   const { v, r, s } = hexToSignature(signature);

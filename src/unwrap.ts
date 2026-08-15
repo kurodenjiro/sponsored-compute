@@ -38,19 +38,19 @@ const GM_ABI = parseAbi([
 
 /** Đổi tên custom error của contract sang câu giải thích cho dev. */
 const REVERT_HINTS: Record<string, string> = {
-  OverPerTxCap: 'vượt trần mỗi giao dịch của Grant',
-  OverDailyCap: 'vượt trần chi trong ngày',
-  OverVested: 'vượt phần đã vest — chờ tranche kế tiếp',
-  GrantExpired: 'Grant đã hết hạn',
-  GrantRevokedErr: 'sponsor đã thu hồi Grant',
-  MerchantNotAllowed: 'payTo không nằm trong allowlist',
-  NotOwnerOfGrant: 'ví gọi không phải chủ Grant',
-  InvalidAsset: 'sai loại tài sản của Grant',
-  ZeroAmount: 'số tiền bằng 0',
-  TrancheNotReady: 'chưa đủ thời gian để mở tranche kế tiếp',
-  TrancheSpendTooLow: 'chưa tiêu đủ mức tối thiểu để mở tranche kế tiếp',
-  TrancheDaysTooLow: 'chưa đủ số ngày tối thiểu cho tranche kế tiếp',
-  AllTranchesClaimed: 'đã mở hết tranche',
+  OverPerTxCap: 'over the Grant per-transaction cap',
+  OverDailyCap: 'over the daily spend cap',
+  OverVested: 'beyond the vested amount - wait for the next tranche',
+  GrantExpired: 'the Grant has expired',
+  GrantRevokedErr: 'the sponsor revoked this Grant',
+  MerchantNotAllowed: 'payTo is not in the allowlist',
+  NotOwnerOfGrant: 'the calling wallet does not own this Grant',
+  InvalidAsset: 'wrong asset type for this Grant',
+  ZeroAmount: 'amount is zero',
+  TrancheNotReady: 'not enough time has passed for the next tranche',
+  TrancheSpendTooLow: 'minimum spend for the next tranche not reached',
+  TrancheDaysTooLow: 'minimum days for the next tranche not reached',
+  AllTranchesClaimed: 'all tranches already claimed',
 };
 
 /**
@@ -78,7 +78,7 @@ export async function agentKey(): Promise<`0x${string}`> {
   const found = await agentPrivateKey();
   if (!found) {
     throw new Error(
-      'chưa có ví agent — chạy `sponsored-compute address` để tạo, hoặc đặt AGENT_PRIVATE_KEY',
+      'no agent wallet yet - run `sponsored-compute address` to create one, or set AGENT_PRIVATE_KEY',
     );
   }
   return found.pk;
@@ -120,7 +120,7 @@ export async function unwrapFromGrant(opts: {
     });
     const r = await pub.waitForTransactionReceipt({ hash });
     if (r.status !== 'success') {
-      return { ok: false, transaction: hash, error: 'unwrap revert — contract từ chối' };
+      return { ok: false, transaction: hash, error: 'unwrap reverted - the contract refused' };
     }
     return { ok: true, transaction: hash };
   } catch (e: any) {
@@ -155,18 +155,18 @@ export async function claimGrantTranche(opts: {
     await pub.simulateContract({ ...call, account });
   } catch (e: any) {
     const r = revertReason(e);
-    return { ok: false, error: r ? `claimTranche bị từ chối: ${r}` : (e?.shortMessage ?? e?.message ?? String(e)) };
+    return { ok: false, error: r ? `claimTranche denied: ${r}` : (e?.shortMessage ?? e?.message ?? String(e)) };
   }
   try {
     const hash = await wallet.writeContract({ ...call, ...GAS });
     const r = await pub.waitForTransactionReceipt({ hash });
     if (r.status !== 'success') {
-      return { ok: false, transaction: hash, error: 'claimTranche revert — usage hoặc thời gian chưa đủ' };
+      return { ok: false, transaction: hash, error: 'claimTranche reverted - usage or elapsed time is insufficient' };
     }
     return { ok: true, transaction: hash };
   } catch (e: any) {
     const r = revertReason(e);
-    return { ok: false, error: r ? `claimTranche bị từ chối: ${r}` : (e?.shortMessage ?? e?.message ?? String(e)) };
+    return { ok: false, error: r ? `claimTranche denied: ${r}` : (e?.shortMessage ?? e?.message ?? String(e)) };
   }
 }
 
@@ -194,7 +194,7 @@ export async function claimGasFromGrant(opts: {
     await pub.simulateContract({ ...call, account });
   } catch (e: any) {
     const reason = revertReason(e);
-    return { ok: false, error: reason ? `claimGas bị từ chối: ${reason}` : (e?.shortMessage ?? e?.message ?? String(e)) };
+    return { ok: false, error: reason ? `claimGas denied: ${reason}` : (e?.shortMessage ?? e?.message ?? String(e)) };
   }
   try {
     const hash = await wallet.writeContract({ ...call, ...GAS });
@@ -203,6 +203,6 @@ export async function claimGasFromGrant(opts: {
     return { ok: true, transaction: hash };
   } catch (e: any) {
     const reason = revertReason(e);
-    return { ok: false, error: reason ? `claimGas bị từ chối: ${reason}` : (e?.shortMessage ?? e?.message ?? String(e)) };
+    return { ok: false, error: reason ? `claimGas denied: ${reason}` : (e?.shortMessage ?? e?.message ?? String(e)) };
   }
 }

@@ -43,7 +43,7 @@ export async function parseChallenge(res: Response): Promise<Challenge> {
     }
   }
   const body = await res.clone().json();
-  if (!body?.accepts) throw new Error('402 nhưng không tìm thấy payment requirements');
+  if (!body?.accepts) throw new Error('402 response contained no payment requirements');
   return body as Challenge;
 }
 
@@ -78,7 +78,7 @@ export async function signPayment(
   req: PaymentRequirement,
   opts: { nonce?: `0x${string}`; now?: number } = {},
 ): Promise<{ authorization: Authorization; signature: `0x${string}` }> {
-  if (req.scheme !== 'exact') throw new Error(`scheme "${req.scheme}" chưa hỗ trợ (chỉ "exact")`);
+  if (req.scheme !== 'exact') throw new Error(`scheme "${req.scheme}" is not supported (only "exact")`);
   const method = req.extra?.assetTransferMethod ?? 'eip3009';
   if (method !== 'eip3009') {
     throw new Error(

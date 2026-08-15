@@ -167,6 +167,6 @@ export class ChainGrantSource implements GrantSource {
 export function getGrantSource(): GrantSource {
   if (process.env.SPONSORED_LOCAL_GRANT === '1') return new LocalGrantSource();
   const gm = (process.env.GRANT_MANAGER ?? getNetwork().grantManager) as `0x${string}` | undefined;
-  if (!gm) throw new Error('chưa có GrantManager cho mạng này — đặt GRANT_MANAGER, hoặc SPONSORED_LOCAL_GRANT=1 để dùng fixture dev');
+  if (!gm) throw new Error('no GrantManager for this network - set GRANT_MANAGER, or SPONSORED_LOCAL_GRANT=1 to use the dev fixture');
   return new ChainGrantSource(gm);
 }

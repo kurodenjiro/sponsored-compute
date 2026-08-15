@@ -76,7 +76,7 @@ export async function payX402(opts: PayOptions): Promise<PayResult> {
   // ② đọc challenge
   const challenge = await parseChallenge(first);
   const req = challenge.accepts?.[0];
-  if (!req) throw new Error('402 nhưng accepts rỗng');
+  if (!req) throw new Error('402 response carried an empty accepts list');
 
   // ③ 🔴 CHECKPOINT — trước khi ký, ngoài context LLM
   if (!opts.__unsafeSkipCheckpoint) {
@@ -100,7 +100,7 @@ export async function payX402(opts: PayOptions): Promise<PayResult> {
       nonce,
       chainId,
     });
-    if (!u.ok) throw new Error(`unwrap thất bại: ${u.error}`);
+    if (!u.ok) throw new Error(`unwrap failed: ${u.error}`);
   }
 
   // ⑤ ký EIP-3009 — mọi giá trị lấy TỪ challenge, không tự tính

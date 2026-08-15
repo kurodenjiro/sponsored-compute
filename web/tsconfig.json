@@ -10,9 +10,15 @@
     "moduleResolution": "bundler",
     "baseUrl": ".",
     "paths": {
-      "viem": ["node_modules/viem"],
-      "viem/*": ["node_modules/viem/*"],
-      "@napi-rs/keyring": ["node_modules/@napi-rs/keyring"]
+      "viem": [
+        "node_modules/viem"
+      ],
+      "viem/*": [
+        "node_modules/viem/*"
+      ],
+      "@napi-rs/keyring": [
+        "node_modules/@napi-rs/keyring"
+      ]
     },
     "strict": true,
     "esModuleInterop": true,
@@ -32,8 +38,9 @@
     "**/*.ts",
     "**/*.tsx",
     "../src/**/*.ts",
+    ".next-dev/types/**/*.ts",
     ".next/types/**/*.ts",
-    ".next-dev/types/**/*.ts"
+    ".next-dev-evil/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"
