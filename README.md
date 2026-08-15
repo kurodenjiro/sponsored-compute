@@ -106,6 +106,27 @@ npm run cli -- claim-grant         # issue a Grant for the current wallet
 
 `init` writes `sponsored.json`, `.mcp.json`, and `.codex/config.toml` (project-scoped — Codex only loads it for trusted projects, and this never touches `~/.codex/config.toml`); it never writes a private key, API key, or developer wallet. The contract rejects a `projectId` that has already received a Grant — one Grant per wallet, so forking a repo can't clone the money.
 
+Both files point at the same MCP server, one per agent client — pick whichever one your agent reads:
+
+**`.mcp.json`** (Claude Code)
+```json
+{
+  "mcpServers": {
+    "sponsored-compute-<slug>-43113": {
+      "command": "npx",
+      "args": ["-y", "--package", "github:kurodenjiro/sponsored-compute", "sponsored-compute-mcp"]
+    }
+  }
+}
+```
+
+**`.codex/config.toml`** (Codex CLI)
+```toml
+[mcp_servers.sponsored-compute-<slug>-43113]
+command = "npx"
+args = ["-y", "--package", "github:kurodenjiro/sponsored-compute", "sponsored-compute-mcp"]
+```
+
 Once SupaDB usage reaches 0.30 XSGD, a developer can request the next tranche — different from `claim-grant` (issuing a Grant for the first time), the `claim` command here opens the next tranche of a Grant that already exists:
 
 ```bash
