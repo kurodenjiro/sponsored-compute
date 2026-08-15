@@ -51,14 +51,23 @@ function serverName(sponsor: string | undefined, chainId: number) {
  *   SPONSORED_MCP_SPEC=github:owner/x402-hack
  * npm chạy `prepare` sau khi clone git dep nên dist/ được build tại chỗ.
  */
-export const CLI_SPEC = process.env.SPONSORED_CLI_SPEC ?? '@sponsored-compute/cli';
-export const MCP_SPEC = process.env.SPONSORED_MCP_SPEC ?? '@sponsored-compute/mcp';
+// The package is not published to npm yet. The GitHub spec keeps install
+// commands produced by the deployed sponsor console executable today.
+export const CLI_SPEC = process.env.SPONSORED_CLI_SPEC ?? 'github:kurodenjiro/sponsored-compute';
+export const MCP_SPEC = process.env.SPONSORED_MCP_SPEC ?? 'github:kurodenjiro/sponsored-compute';
+const REGISTRY_URL = process.env.SPONSORED_REGISTRY_URL ?? 'https://sponsored-compute.vercel.app';
 
-function serverConfig() {
+type McpServerConfig = {
+  command: string;
+  args: string[];
+  env: { SPONSORED_REGISTRY_URL: string };
+};
+
+function serverConfig(): McpServerConfig {
   // Spec dạng github: cài cả package, nên phải gọi đúng bin thay vì tên package.
   return MCP_SPEC.startsWith('github:') || MCP_SPEC.includes('/') && !MCP_SPEC.startsWith('@')
-    ? { command: 'npx', args: ['-y', '--package', MCP_SPEC, 'sponsored-compute-mcp'] }
-    : { command: 'npx', args: ['-y', MCP_SPEC] };
+    ? { command: 'npx', args: ['-y', '--package', MCP_SPEC, 'sponsored-compute-mcp'], env: { SPONSORED_REGISTRY_URL: REGISTRY_URL } }
+    : { command: 'npx', args: ['-y', MCP_SPEC], env: { SPONSORED_REGISTRY_URL: REGISTRY_URL } };
 }
 
 /**
@@ -68,9 +77,9 @@ function serverConfig() {
  * đụng vào `~/.codex/config.toml` của máy dev: đó là config toàn máy, không
  * phải thứ một `init` chạy trong một thư mục dự án được phép sửa.
  */
-function codexBlock(name: string, cfg: { command: string; args: string[] }): string {
+function codexBlock(name: string, cfg: McpServerConfig): string {
   const args = cfg.args.map((a) => JSON.stringify(a)).join(', ');
-  return `[mcp_servers.${name}]\ncommand = ${JSON.stringify(cfg.command)}\nargs = [${args}]`;
+  return `[mcp_servers.${name}]\ncommand = ${JSON.stringify(cfg.command)}\nargs = [${args}]\n\n[mcp_servers.${name}.env]\nSPONSORED_REGISTRY_URL = ${JSON.stringify(cfg.env.SPONSORED_REGISTRY_URL)}`;
 }
 
 /** Nội dung `.codex/config.toml` mà init sẽ ghi — để sponsor console xem trước. */
