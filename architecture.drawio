@@ -1,241 +1,188 @@
-<mxfile host="app.diagrams.net" agent="claude-code" version="24.7.17" type="device">
+<mxfile host="app.diagrams.net" agent="claude-code">
   <diagram name="Architecture" id="sponsored-compute-architecture">
-    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1460" pageHeight="1080" math="0" shadow="0">
+    <mxGraphModel dx="2012" dy="1140" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1700" pageHeight="1180" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-
-        <!-- ===================== TITLE ===================== -->
-        <mxCell id="legend" value="Sponsored Compute — Architecture &amp; Data Flow" style="text;html=1;fontSize=20;fontStyle=1;align=left;verticalAlign=middle;" vertex="1" parent="1">
-          <mxGeometry x="40" y="-40" width="700" height="30" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-104" parent="1" style="text;html=1;fontSize=20;fontStyle=1;align=left;verticalAlign=middle;" value="Sponsored Compute — Architecture &amp; Data Flow" vertex="1">
+          <mxGeometry height="30" width="700" x="40.004482758620696" y="60.0037931034484" as="geometry" />
         </mxCell>
-
-        <!-- ===================== PHASE LABELS ===================== -->
-        <mxCell id="phase1" value="① CAMPAIGN SETUP — sponsor funds a repo" style="text;html=1;fontSize=13;fontStyle=1;align=left;fontColor=#666666;" vertex="1" parent="1">
-          <mxGeometry x="40" y="8" width="420" height="20" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-105" parent="1" style="text;html=1;fontSize=13;fontStyle=1;align=left;fontColor=#666666;" value="① CAMPAIGN SETUP — sponsor funds a repo" vertex="1">
+          <mxGeometry height="20" width="420" x="40.004482758620696" y="108.0037931034484" as="geometry" />
         </mxCell>
-        <mxCell id="phase2" value="② GRANT CLAIM &amp; PAY-PER-USE — developer + agent" style="text;html=1;fontSize=13;fontStyle=1;align=left;fontColor=#666666;" vertex="1" parent="1">
-          <mxGeometry x="40" y="308" width="480" height="20" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-106" parent="1" style="text;html=1;fontSize=13;fontStyle=1;align=left;fontColor=#666666;" value="② GRANT CLAIM &amp; PAY-PER-USE — developer + agent" vertex="1">
+          <mxGeometry height="20" width="480" x="40.004482758620696" y="408.0037931034484" as="geometry" />
         </mxCell>
-
-        <!-- ===================== CONTAINERS ===================== -->
-        <mxCell id="c_webapp" value="Vercel — Next.js Web App (serverless functions)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#82b366;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;fontStyle=1;fontSize=12;dashed=1;" vertex="1" parent="1">
-          <mxGeometry x="320" y="20" width="700" height="250" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-107" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#82b366;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;fontStyle=1;fontSize=12;dashed=1;" value="Vercel — Next.js Web App (serverless functions)" vertex="1">
+          <mxGeometry height="250" width="700" x="320.0044827586207" y="120.0037931034484" as="geometry" />
         </mxCell>
-
-        <mxCell id="c_chain" value="Avalanche Fuji · chainId 43113 (on-chain)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#d79b00;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;fontStyle=1;fontSize=12;dashed=1;" vertex="1" parent="1">
-          <mxGeometry x="1040" y="20" width="360" height="760" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-108" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#d79b00;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;fontStyle=1;fontSize=12;dashed=1;" value="Avalanche Fuji · chainId 43113 (on-chain)" vertex="1">
+          <mxGeometry height="760" width="360" x="1040.0044827586207" y="120.0037931034484" as="geometry" />
         </mxCell>
-
-        <!-- ===================== PHASE 1 — LEFT ===================== -->
-        <mxCell id="n_sponsor" value="Sponsor&#10;(browser wallet)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="40" y="40" width="220" height="60" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-109" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;" value="Sponsor&#xa;(browser wallet)" vertex="1">
+          <mxGeometry height="60" width="220" x="40.004482758620696" y="140.0037931034484" as="geometry" />
         </mxCell>
-
-        <mxCell id="n_repo" value="GitHub Repo&#10;sponsored.json + .mcp.json" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D1C4E9;strokeColor=#512DA8;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="40" y="180" width="220" height="90" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-110" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D1C4E9;strokeColor=#512DA8;fontSize=12;" value="GitHub Repo&#xa;sponsored.json + .mcp.json" vertex="1">
+          <mxGeometry height="90" width="220" x="40.004482758620696" y="280.0037931034484" as="geometry" />
         </mxCell>
-
-        <mxCell id="n_dev" value="Developer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="40" y="340" width="220" height="60" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-111" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;" value="Developer" vertex="1">
+          <mxGeometry height="60" width="220" x="40.004482758620696" y="440.0037931034484" as="geometry" />
         </mxCell>
-
-        <mxCell id="n_agent" value="AI Coding Agent&#10;(Claude Code / Codex)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="40" y="430" width="220" height="60" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-112" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;" value="AI Coding Agent&#xa;(Claude Code / Codex)" vertex="1">
+          <mxGeometry height="60" width="220" x="40.004482758620696" y="530.0037931034483" as="geometry" />
         </mxCell>
-
-        <!-- ===================== CENTER-LEFT — APP LOGIC ===================== -->
-        <mxCell id="n_sponsorconsole" value="/sponsor&#10;Sponsor Console" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="340" y="40" width="260" height="60" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-113" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" value="/sponsor&#xa;Sponsor Console" vertex="1">
+          <mxGeometry height="60" width="260" x="340.0044827586207" y="150.0037931034484" as="geometry" />
         </mxCell>
-
-        <mxCell id="n_mcp" value="MCP Server (stdio)&#10;list_sponsored_platforms&#10;check_project_sponsorship&#10;claim_sponsored_grant&#10;get_grant_status&#10;pay_for_service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="340" y="340" width="260" height="180" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-114" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="MCP Server (stdio)&#xa;list_sponsored_platforms&#xa;check_project_sponsorship&#xa;claim_sponsored_grant&#xa;get_grant_status&#xa;pay_for_service" vertex="1">
+          <mxGeometry height="180" width="260" x="340.0044827586207" y="440.0037931034484" as="geometry" />
         </mxCell>
-
-        <mxCell id="n_checkpoint" value="Checkpoint&#10;(off-LLM policy enforcement)&#10;never exposed as a callable tool" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="340" y="560" width="260" height="80" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-115" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" value="Checkpoint&#xa;(off-LLM policy enforcement)&#xa;never exposed as a callable tool" vertex="1">
+          <mxGeometry height="80" width="260" x="340.0044827586207" y="660.0037931034483" as="geometry" />
         </mxCell>
-
-        <mxCell id="n_signer" value="Local EOA Signer&#10;(OS Keychain / AGENT_PRIVATE_KEY)&#10;signs EIP-3009, never leaves host" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="340" y="680" width="260" height="80" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-116" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" value="Local EOA Signer&#xa;(OS Keychain / AGENT_PRIVATE_KEY)&#xa;signs EIP-3009, never leaves host" vertex="1">
+          <mxGeometry height="80" width="260" x="340.0044827586207" y="780.0037931034483" as="geometry" />
         </mxCell>
-
-        <!-- ===================== CENTER — WEB APP + SERVICES ===================== -->
-        <mxCell id="n_apiroutes" value="/api/registry · /api/grants · /api/history" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="720" y="40" width="260" height="60" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-117" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" value="/api/registry · /api/grants · /api/history" vertex="1">
+          <mxGeometry height="60" width="260" x="740.0044827586207" y="150.0037931034484" as="geometry" />
         </mxCell>
-
-        <mxCell id="n_merchantdash" value="/merchant&#10;Merchant Dashboard" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="720" y="180" width="260" height="60" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-118" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" value="/merchant&#xa;Merchant Dashboard" vertex="1">
+          <mxGeometry height="60" width="260" x="720.0044827586207" y="280.0037931034484" as="geometry" />
         </mxCell>
-
-        <mxCell id="n_merchantapi" value="Merchant API&#10;x402-protected (e.g. SupaDB /api/v1/query)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="720" y="560" width="260" height="80" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-119" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" value="Merchant API&#xa;x402-protected (e.g. SupaDB /api/v1/query)" vertex="1">
+          <mxGeometry height="80" width="260" x="720.0044827586207" y="660.0037931034483" as="geometry" />
         </mxCell>
-
-        <mxCell id="n_facilitator" value="x402 Facilitator&#10;self-relay / 0xGasless&#10;/verify · /settle" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="720" y="680" width="260" height="80" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-120" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" value="x402 Facilitator&#xa;self-relay / 0xGasless&#xa;/verify · /settle" vertex="1">
+          <mxGeometry height="80" width="260" x="720.0044827586207" y="780.0037931034483" as="geometry" />
         </mxCell>
-
-        <!-- ===================== ON-CHAIN ===================== -->
-        <mxCell id="n_sponsorpool" value="SponsorPool&#10;fund · createCampaign · pause" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="1080" y="60" width="260" height="90" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-121" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" value="SponsorPool&#xa;fund · createCampaign · pause" vertex="1">
+          <mxGeometry height="90" width="260" x="1080.0044827586207" y="200.0037931034484" as="geometry" />
         </mxCell>
-
-        <mxCell id="n_grantmanager" value="GrantManager&#10;(PBM-compatible subset)&#10;issueGrant · unwrap · caps · expiry · vesting · revoke" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="1080" y="220" width="260" height="110" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-122" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" value="GrantManager&#xa;(PBM-compatible subset)&#xa;issueGrant · unwrap · caps · expiry · vesting · revoke" vertex="1">
+          <mxGeometry height="110" width="260" x="1080.0044827586207" y="320.0037931034484" as="geometry" />
         </mxCell>
-
-        <mxCell id="n_registry" value="MerchantRegistry&#10;merchant allowlist, payTo per project" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="1080" y="400" width="260" height="90" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-123" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" value="MerchantRegistry&#xa;merchant allowlist, payTo per project" vertex="1">
+          <mxGeometry height="90" width="260" x="1080.0044827586207" y="500.0037931034484" as="geometry" />
         </mxCell>
-
-        <mxCell id="n_xsgd" value="XSGD (ERC-20)&#10;transferWithAuthorization (EIP-3009)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="1080" y="560" width="260" height="90" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-124" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" value="XSGD (ERC-20)&#xa;transferWithAuthorization (EIP-3009)" vertex="1">
+          <mxGeometry height="90" width="260" x="1080.0044827586207" y="660.0037931034483" as="geometry" />
         </mxCell>
-
-        <!-- ===================== DATA LAYER ===================== -->
-        <mxCell id="n_supabase" value="Supabase&#10;payment history · campaigns · claimed grants · replay/nonce store (atomic, serverless-safe)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b0e3e6;strokeColor=#0e8088;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="40" y="860" width="940" height="100" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-125" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b0e3e6;strokeColor=#0e8088;fontSize=11;" value="Supabase&#xa;payment history · campaigns · claimed grants · replay/nonce store (atomic, serverless-safe)" vertex="1">
+          <mxGeometry height="100" width="940" x="40.004482758620696" y="960.0037931034483" as="geometry" />
         </mxCell>
-
-        <!-- ===================== EDGES — PHASE 1 ===================== -->
-        <mxCell id="e1" value="paste GitHub repo URL" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=10;" edge="1" parent="1" source="n_sponsor" target="n_sponsorconsole">
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-126" edge="1" parent="1" source="kowgtOwrSMoY_sR1NMWI-109" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=10;" target="kowgtOwrSMoY_sR1NMWI-113" value="paste GitHub repo URL">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="e2" value="create campaign request" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=10;" edge="1" parent="1" source="n_sponsorconsole" target="n_apiroutes">
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-127" edge="1" parent="1" source="kowgtOwrSMoY_sR1NMWI-113" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=10;" target="kowgtOwrSMoY_sR1NMWI-117" value="create campaign request">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="e3" value="createCampaign + fund XSGD (signed tx)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=1;exitY=0.4;entryX=0;entryY=0.4;fontSize=10;" edge="1" parent="1" source="n_apiroutes" target="n_sponsorpool">
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-128" edge="1" parent="1" source="kowgtOwrSMoY_sR1NMWI-117" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=1;exitY=0.4;entryX=0;entryY=0.4;fontSize=10;" target="kowgtOwrSMoY_sR1NMWI-121" value="createCampaign + fund XSGD (signed tx)">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="e4" value="verify on-chain, then write campaign pointer" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=0.2;exitY=1;entryX=0.65;entryY=0;fontSize=10;" edge="1" parent="1" source="n_apiroutes" target="n_supabase">
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-129" edge="1" parent="1" source="kowgtOwrSMoY_sR1NMWI-117" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=0.2;exitY=1;entryX=0.65;entryY=0;fontSize=10;" target="kowgtOwrSMoY_sR1NMWI-125" value="verify on-chain, then write campaign pointer">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="770" y="140" />
-              <mxPoint x="650" y="140" />
-              <mxPoint x="650" y="860" />
+              <mxPoint x="770.0044827586207" y="240.0037931034484" />
+              <mxPoint x="650.0044827586207" y="240.0037931034484" />
+              <mxPoint x="650.0044827586207" y="960.0037931034483" />
             </Array>
           </mxGeometry>
         </mxCell>
-
-        <mxCell id="e5" value="returns `cli init` command → sponsor commits sponsored.json + .mcp.json" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=0;exitY=0.5;entryX=1;entryY=0.5;fontSize=10;" edge="1" parent="1" source="n_apiroutes" target="n_repo">
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-130" edge="1" parent="1" source="kowgtOwrSMoY_sR1NMWI-117" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=0;exitY=0.5;entryX=1;entryY=0.5;fontSize=10;" target="kowgtOwrSMoY_sR1NMWI-110" value="returns `cli init` command → sponsor commits sponsored.json + .mcp.json">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="620" y="70" />
-              <mxPoint x="620" y="225" />
+              <mxPoint x="620.0044827586207" y="170.0037931034484" />
+              <mxPoint x="620.0044827586207" y="325.0037931034484" />
             </Array>
           </mxGeometry>
         </mxCell>
-
-        <!-- ===================== EDGES — PHASE 2 ===================== -->
-        <mxCell id="e6" value="dev clones repo" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=10;" edge="1" parent="1" source="n_repo" target="n_dev">
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-131" edge="1" parent="1" source="kowgtOwrSMoY_sR1NMWI-110" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=10;" target="kowgtOwrSMoY_sR1NMWI-111" value="dev clones repo">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="e7" value="&quot;I need a database for this project&quot;" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=10;" edge="1" parent="1" source="n_dev" target="n_agent">
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-132" edge="1" parent="1" source="kowgtOwrSMoY_sR1NMWI-111" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=10;" target="kowgtOwrSMoY_sR1NMWI-112" value="&quot;I need a database for this project&quot;">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="e8" value="list_sponsored_platforms / check_project_sponsorship / claim_sponsored_grant / pay_for_service" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=1;exitY=0.5;entryX=0;entryY=0.4;fontSize=10;" edge="1" parent="1" source="n_agent" target="n_mcp">
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-133" edge="1" parent="1" source="kowgtOwrSMoY_sR1NMWI-112" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=1;exitY=0.5;entryX=0;entryY=0.4;fontSize=10;" target="kowgtOwrSMoY_sR1NMWI-114" value="list_sponsored_platforms / check_project_sponsorship / claim_sponsored_grant / pay_for_service">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="e9" value="check_project_sponsorship — read-only on-chain verify" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;dashed=1;exitX=1;exitY=0.25;entryX=0;entryY=0.48;fontSize=10;" edge="1" parent="1" source="n_mcp" target="c_chain">
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-134" edge="1" parent="1" source="kowgtOwrSMoY_sR1NMWI-114" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;dashed=1;exitX=1;exitY=0.25;entryX=0;entryY=0.48;fontSize=10;" target="kowgtOwrSMoY_sR1NMWI-108" value="check_project_sponsorship — read-only on-chain verify">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="e10" value="claim_sponsored_grant → issueGrant()&#10;(writes projectId back to sponsored.json)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=1;exitY=0.6;entryX=0;entryY=0.5;fontSize=10;" edge="1" parent="1" source="n_mcp" target="n_grantmanager">
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-135" edge="1" parent="1" source="kowgtOwrSMoY_sR1NMWI-114" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=1;exitY=0.6;entryX=0;entryY=0.5;fontSize=10;" target="kowgtOwrSMoY_sR1NMWI-122" value="claim_sponsored_grant → issueGrant()&#xa;(writes projectId back to sponsored.json)">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="e11" value="pay_for_service(url, max_amount)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=10;" edge="1" parent="1" source="n_mcp" target="n_checkpoint">
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-136" edge="1" parent="1" source="kowgtOwrSMoY_sR1NMWI-114" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=10;" target="kowgtOwrSMoY_sR1NMWI-115" value="pay_for_service(url, max_amount)">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="e12" value="verify allowlist, cap, expiry, balance" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;dashed=1;exitX=0.7;exitY=0;entryX=0;entryY=0.5;fontSize=10;" edge="1" parent="1" source="n_checkpoint" target="n_registry">
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-137" edge="1" parent="1" source="kowgtOwrSMoY_sR1NMWI-115" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;dashed=1;exitX=0.7;exitY=0;entryX=0;entryY=0.5;fontSize=10;" target="kowgtOwrSMoY_sR1NMWI-123" value="verify allowlist, cap, expiry, balance">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="522" y="540" />
-              <mxPoint x="1060" y="540" />
+              <mxPoint x="522.0044827586207" y="640.0037931034483" />
+              <mxPoint x="1060.0044827586207" y="640.0037931034483" />
             </Array>
           </mxGeometry>
         </mxCell>
-
-        <mxCell id="e13" value="PASS → sign EIP-3009" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=10;" edge="1" parent="1" source="n_checkpoint" target="n_signer">
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-138" edge="1" parent="1" source="kowgtOwrSMoY_sR1NMWI-115" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=10;" target="kowgtOwrSMoY_sR1NMWI-116" value="PASS → sign EIP-3009">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="e14" value="① POST request → ② 402 price challenge" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;dashed=1;exitX=1;exitY=0.85;entryX=0;entryY=0.3;fontSize=10;" edge="1" parent="1" source="n_mcp" target="n_merchantapi">
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-139" edge="1" parent="1" source="kowgtOwrSMoY_sR1NMWI-114" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;dashed=1;exitX=1;exitY=0.85;entryX=0;entryY=0.3;fontSize=10;" target="kowgtOwrSMoY_sR1NMWI-119" value="① POST request → ② 402 price challenge">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="e15" value="③ retry with PAYMENT-SIGNATURE" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=1;exitY=0.2;entryX=0;entryY=0.7;fontSize=10;" edge="1" parent="1" source="n_signer" target="n_merchantapi">
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-140" edge="1" parent="1" source="kowgtOwrSMoY_sR1NMWI-116" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=1;exitY=0.2;entryX=0;entryY=0.7;fontSize=10;" target="kowgtOwrSMoY_sR1NMWI-119" value="③ retry with PAYMENT-SIGNATURE">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="e16" value="verify + settle" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=10;" edge="1" parent="1" source="n_merchantapi" target="n_facilitator">
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-141" edge="1" parent="1" source="kowgtOwrSMoY_sR1NMWI-119" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=10;" target="kowgtOwrSMoY_sR1NMWI-120" value="verify + settle">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="e17" value="transferWithAuthorization (on-chain settle)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=1;exitY=0.3;entryX=0;entryY=0.6;fontSize=10;" edge="1" parent="1" source="n_facilitator" target="n_xsgd">
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-142" edge="1" parent="1" source="kowgtOwrSMoY_sR1NMWI-120" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=1;exitY=0.3;entryX=0;entryY=0.6;fontSize=10;" target="kowgtOwrSMoY_sR1NMWI-124" value="transferWithAuthorization (on-chain settle)">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-
-        <mxCell id="e18" value="record payment claim + nonce (replay protection)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=0;exitY=0.7;entryX=0.7;entryY=0;fontSize=10;" edge="1" parent="1" source="n_merchantapi" target="n_supabase">
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-143" edge="1" parent="1" source="kowgtOwrSMoY_sR1NMWI-119" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=0;exitY=0.7;entryX=0.7;entryY=0;fontSize=10;" target="kowgtOwrSMoY_sR1NMWI-125" value="record payment claim + nonce (replay protection)">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="675" y="616" />
-              <mxPoint x="675" y="860" />
+              <mxPoint x="675.0044827586207" y="716.0037931034483" />
+              <mxPoint x="675.0044827586207" y="960.0037931034483" />
             </Array>
           </mxGeometry>
         </mxCell>
-
-        <mxCell id="e19" value="settlement history" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=0;exitY=0.5;entryX=0.74;entryY=0;fontSize=10;" edge="1" parent="1" source="n_merchantdash" target="n_supabase">
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-144" edge="1" parent="1" source="kowgtOwrSMoY_sR1NMWI-118" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;exitX=0;exitY=0.5;entryX=0.74;entryY=0;fontSize=10;" target="kowgtOwrSMoY_sR1NMWI-125" value="settlement history">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="700" y="210" />
-              <mxPoint x="700" y="860" />
+              <mxPoint x="700.0044827586207" y="310.0037931034484" />
+              <mxPoint x="700.0044827586207" y="960.0037931034483" />
             </Array>
           </mxGeometry>
         </mxCell>
-
-        <!-- ===================== LEGEND SWATCHES ===================== -->
-        <mxCell id="lg_title" value="Legend" style="text;html=1;fontSize=13;fontStyle=1;align=left;" vertex="1" parent="1">
-          <mxGeometry x="40" y="1000" width="120" height="20" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-145" parent="1" style="text;html=1;fontSize=13;fontStyle=1;align=left;" value="Legend" vertex="1">
+          <mxGeometry height="20" width="120" x="40.004482758620696" y="1100.0037931034483" as="geometry" />
         </mxCell>
-        <mxCell id="lg1" value="Client" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="40" y="1030" width="110" height="30" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-146" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" value="Client" vertex="1">
+          <mxGeometry height="30" width="110" x="40.004482758620696" y="1130.0037931034483" as="geometry" />
         </mxCell>
-        <mxCell id="lg2" value="Repo artifact" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D1C4E9;strokeColor=#512DA8;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="160" y="1030" width="110" height="30" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-147" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D1C4E9;strokeColor=#512DA8;fontSize=10;" value="Repo artifact" vertex="1">
+          <mxGeometry height="30" width="110" x="160.0044827586207" y="1130.0037931034483" as="geometry" />
         </mxCell>
-        <mxCell id="lg3" value="App logic (MCP)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="280" y="1030" width="120" height="30" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-148" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" value="App logic (MCP)" vertex="1">
+          <mxGeometry height="30" width="120" x="280.0044827586207" y="1130.0037931034483" as="geometry" />
         </mxCell>
-        <mxCell id="lg4" value="Checkpoint (security)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="410" y="1030" width="140" height="30" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-149" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" value="Checkpoint (security)" vertex="1">
+          <mxGeometry height="30" width="140" x="410.0044827586207" y="1130.0037931034483" as="geometry" />
         </mxCell>
-        <mxCell id="lg5" value="Key storage" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="560" y="1030" width="110" height="30" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-150" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" value="Key storage" vertex="1">
+          <mxGeometry height="30" width="110" x="560.0044827586207" y="1130.0037931034483" as="geometry" />
         </mxCell>
-        <mxCell id="lg6" value="Web app (Vercel)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="680" y="1030" width="130" height="30" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-151" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" value="Web app (Vercel)" vertex="1">
+          <mxGeometry height="30" width="130" x="680.0044827586207" y="1130.0037931034483" as="geometry" />
         </mxCell>
-        <mxCell id="lg7" value="On-chain (Avalanche)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="820" y="1030" width="150" height="30" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-152" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;" value="On-chain (Avalanche)" vertex="1">
+          <mxGeometry height="30" width="150" x="820.0044827586207" y="1130.0037931034483" as="geometry" />
         </mxCell>
-        <mxCell id="lg8" value="Payment services" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="980" y="1030" width="140" height="30" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-153" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" value="Payment services" vertex="1">
+          <mxGeometry height="30" width="140" x="980.0044827586207" y="1130.0037931034483" as="geometry" />
         </mxCell>
-        <mxCell id="lg9" value="Data store (Supabase)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b0e3e6;strokeColor=#0e8088;fontSize=10;" vertex="1" parent="1">
-          <mxGeometry x="1130" y="1030" width="150" height="30" as="geometry" />
+        <mxCell id="kowgtOwrSMoY_sR1NMWI-154" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b0e3e6;strokeColor=#0e8088;fontSize=10;" value="Data store (Supabase)" vertex="1">
+          <mxGeometry height="30" width="150" x="1130.0044827586207" y="1130.0037931034483" as="geometry" />
         </mxCell>
-
       </root>
     </mxGraphModel>
   </diagram>
