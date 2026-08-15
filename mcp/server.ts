@@ -21,11 +21,12 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 import { getSigner } from '../src/signer.js';
 import { getGrantSource } from '../src/grant.js';
 import { claimSponsoredGrant, readSponsorship } from '../src/claim.js';
-import { formatAmount } from '../src/campaign.js';
+import { formatAmount, projectIdOf } from '../src/campaign.js';
 import { getNetwork, DEFAULT_CHAIN_ID, isMainnet } from '../src/config.js';
 import { payX402, CheckpointDenied } from '../src/pay.js';
 import { claimGasFromGrant } from '../src/unwrap.js';
 import { renderPlatforms, findPlatform } from './platforms.js';
+import { readManifest } from '../src/init.js';
 
 const net = getNetwork();
 
@@ -117,6 +118,29 @@ const TOOLS = [
   },
 ];
 
+/**
+ * claim_sponsored_grant ghi projectId vào sponsored.json — nhưng nếu các tool
+ * tiêu Grant không đọc lại thì con trỏ đó vô dụng: claim xong, agent vẫn báo
+ * "No Grant exists" trừ khi dev tự export PROJECT_ID. Thứ tự ưu tiên: tham số
+ * gọi > env > con trỏ trong repo.
+ */
+async function resolveProjectId(explicit?: string): Promise<string> {
+  if (explicit) return explicit;
+  if (process.env.PROJECT_ID) return process.env.PROJECT_ID;
+
+  /**
+   * sponsored.json nằm trong repo nên KHÔNG đáng tin: projectId suy ra được từ
+   * campaignId + ví (đều công khai on-chain), nên một repo độc có thể ghi sẵn
+   * projectId của Grant người khác. Vì vậy chỉ lấy campaignId từ file rồi TỰ
+   * suy ra projectId cho ví của chính agent — con trỏ đã ghi chỉ được dùng khi
+   * nó khớp đúng giá trị suy ra.
+   */
+  const pointer = readManifest()?.campaigns.find((c) => c.campaignId);
+  if (!pointer?.campaignId) return '0x';
+  const wallet = await (await getSigner()).address();
+  return projectIdOf(pointer.campaignId, wallet);
+}
+
 const server = new Server(
   { name: 'sponsored-compute', version: '0.1.0' },
   { capabilities: { tools: {} } },
@@ -177,7 +201,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       }
 
       case 'get_grant_status': {
-        const g = await getGrantSource().get(args.project_id ?? process.env.PROJECT_ID ?? '0x');
+        const g = await getGrantSource().get(await resolveProjectId(args.project_id));
         if (!g) return text('No Grant exists for this project. Ask the user to choose a platform first.');
         const decimals = g.asset === 1 ? 18 : 6;
         const symbol = g.asset === 1 ? 'AVAX' : 'XSGD';
@@ -199,7 +223,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
 
       case 'pay_for_service': {
         const signer = await getSigner();
-        const grant = await getGrantSource().get(args.project_id ?? process.env.PROJECT_ID ?? '0x');
+        const grant = await getGrantSource().get(await resolveProjectId(args.project_id));
 
         /**
          * Khi có GRANT_MANAGER thì BẮT BUỘC đi qua unwrap() on-chain.
@@ -231,7 +255,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       }
 
       case 'claim_avax_gas': {
-        const grant = await getGrantSource().get(args.project_id ?? process.env.PROJECT_ID ?? '0x');
+        const grant = await getGrantSource().get(await resolveProjectId(args.project_id));
         if (!grant) return text('No Grant exists for this project.');
         if (grant.asset !== 1) return text('Denied: this is an XSGD payment Grant, not an AVAX gas Grant.');
         let amount: bigint;

@@ -96,10 +96,12 @@ Start from [`web/.env.example`](web/.env.example). Never commit `.env.local` or 
 | `SUPABASE_URL` | Supabase project URL | Yes |
 | `SUPABASE_SECRET_KEY` | Server-only Supabase secret key | Yes |
 | `RELAYER_PRIVATE_KEY` | Server-only wallet for settlement and testnet merchant approval | Yes |
-| `X402_SETTLEMENT_PROVIDER` | Use `self-relay` for the verified demo path | Yes |
+| `X402_SETTLEMENT_PROVIDER` | `self-relay` settles through this app's own relayer; `0xgasless` defers to the external facilitator | Yes |
 | `SPONSORED_REGISTRY_URL` | Public URL used by the CLI/MCP claim flow | Yes after deploy |
 | `SPONSORED_CLI_SPEC` | CLI package/GitHub spec emitted by the sponsor console | Yes until published |
 | `SPONSORED_MCP_SPEC` | MCP package/GitHub spec emitted by the sponsor console | Yes until published |
+
+For local work only, `SPONSORED_LOCAL_GRANT=1` reads Grant state from the `.grant-dev.json` fixture instead of the chain. Never set it in a deployed environment: it makes the checkpoint authorize against a hand-editable file.
 
 `RELAYER_PRIVATE_KEY` must have Fuji AVAX. When `SPONSORED_AUTO_APPROVE_MERCHANTS=1`, it must also be the owner of the deployed MerchantRegistry. Do not enable automatic merchant approval for a mainnet deployment without a deliberate security review.
 
@@ -131,6 +133,21 @@ The project ships MCP declarations for Claude Code and Codex. The available acti
 5. `pay_for_service(url, max_amount)`
 
 The first two are read-only. Claiming and paying create external effects and should be called only with explicit user approval.
+
+Once a Grant is claimed, `claim_sponsored_grant` records its `projectId` in `sponsored.json`, and the remaining tools read it from there. Set `PROJECT_ID` only to override that pointer.
+
+## Sponsor operations from the CLI
+
+The sponsor console drives these through a browser wallet. The same operations are available headless, which is what makes campaigns scriptable and testable:
+
+```bash
+sponsored-compute create-campaign --campaign 0x… --sponsor supadb --grant-amount 1000000
+sponsored-compute fund-campaign  --campaign 0x… --amount 2000000
+sponsored-compute revoke-grant   --grant-id 2
+sponsored-compute withdraw-unused --campaign 0x…
+```
+
+Amounts are atomic units — 6 decimals for XSGD, 18 for AVAX; add `--asset avax` for a native gas campaign. Every command is signed by the agent wallet and reverts unless that wallet is the campaign sponsor. `sponsored-compute --help` lists the full set.
 
 ## Verify
 

@@ -158,7 +158,15 @@ export async function handlePayment(req: Request, resource: string): Promise<Han
       paid: PRICE,
       tx: `${net.explorer}/tx/${out.transaction}`,
     },
-    header: Buffer.from(JSON.stringify(out)).toString('base64'),
+    /**
+     * settleDirect trả blockNumber kiểu bigint. JSON.stringify ném TypeError
+     * trên bigint ⇒ throw Ở ĐÂY, sau khi tiền ĐÃ chuyển và đã ghi ledger ⇒
+     * dev bị trừ tiền rồi nhận HTTP 500 và không có data. Phải serialize an
+     * toàn: header này chỉ là receipt, không đáng để đánh đổi cả giao dịch.
+     */
+    header: Buffer.from(
+      JSON.stringify(out, (_k, v) => (typeof v === 'bigint' ? v.toString() : v)),
+    ).toString('base64'),
   };
 }
 

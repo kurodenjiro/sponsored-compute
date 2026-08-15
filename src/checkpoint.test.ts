@@ -45,6 +45,15 @@ const base = { chainId: 43114, now: NOW };
   check('cho phép khi mọi điều kiện thoả', d.ok, true);
 }
 
+// signerAddress khớp thì KHÔNG được chặn — tránh vá quá tay thành chặn cả chủ Grant.
+{
+  const d = checkpoint({
+    ...base, req: req(), grant: grant(), callerMax: 5_000000n,
+    signerAddress: '0xBEA48166DD6F3563D843ED8D9C615127497D82E0',
+  });
+  check('cho phép khi signer khớp (không phân biệt hoa thường)', d.ok, true);
+}
+
 // --- ⚡ CHẶN 1: sai merchant (demo bước 5) ---
 {
   const d = checkpoint({ ...base, req: req({ payTo: ATTACKER }), grant: grant(), callerMax: 5_000000n });
@@ -90,6 +99,15 @@ const base = { chainId: 43114, now: NOW };
     ['CHẶN sai chain', checkpoint({ ...base, req: req({ chainId: 8453, network: 'eip155:8453' }), grant: grant(), callerMax: 5_000000n })],
     ['CHẶN scheme lạ', checkpoint({ ...base, req: req({ scheme: 'upto' }), grant: grant(), callerMax: 5_000000n })],
     ['CHẶN Permit2 (smart account)', checkpoint({ ...base, req: req({ extra: { assetTransferMethod: 'permit2' } }), grant: grant(), callerMax: 5_000000n })],
+    /**
+     * unwrap() là permissionless và luôn trả tiền về g.signer. projectId suy ra
+     * được từ dữ liệu công khai, nên repo độc có thể trỏ vào Grant người khác
+     * để đốt hạn mức của họ. Không có nhánh này thì cuộc tấn công đó đi lọt.
+     */
+    ['CHẶN Grant của ví khác', checkpoint({
+      ...base, req: req(), grant: grant({ signer: ATTACKER }), callerMax: 5_000000n,
+      signerAddress: '0xbeA48166Dd6f3563d843Ed8D9C615127497d82E0',
+    })],
   ];
   for (const [label, d] of cases) check(label, d.ok, false, d.ok ? '' : d.code);
 }

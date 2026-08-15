@@ -5,8 +5,7 @@
       "args": ["tsx", "mcp/server.ts"],
       "env": {
         "CHAIN_ID": "43113",
-        "GRANT_MANAGER": "0x3230B5666d8De86d3079D07bb45A7075A1d0b043",
-        "PROJECT_ID": "0xb34e1d43700c753c79fa98a98c434b921d9d3467e3f07f78ada83890ab8162bc",
+        "GRANT_MANAGER": "0xbd1ffd89b634810fe09069312d618641f43d9814",
         "SPONSORED_REGISTRY_URL": "https://sponsored-compute.vercel.app"
       }
     }

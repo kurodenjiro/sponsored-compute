@@ -2,8 +2,8 @@
  * Nguồn trạng thái Grant.
  *
  * Hiện có 2 nguồn:
- *  - ChainGrantSource  : đọc từ GrantManager on-chain  (dùng khi contract đã deploy)
- *  - LocalGrantSource  : đọc từ .grant-dev.json         (dev/test, KHÔNG dùng khi demo)
+ *  - ChainGrantSource  : đọc từ GrantManager on-chain  (mặc định)
+ *  - LocalGrantSource  : đọc từ .grant-dev.json         (chỉ khi SPONSORED_LOCAL_GRANT=1)
  *
  * Checkpoint chỉ nhận GrantView — không quan tâm nguồn nào.
  */
@@ -99,6 +99,11 @@ export class ChainGrantSource implements GrantSource {
   }
 
   async get(projectId: string): Promise<GrantView | null> {
+    // Repo chưa claim thì caller truyền '0x' (hoặc chuỗi rỗng). Không chặn ở đây
+    // thì viem ném lỗi bytes32 thô, nuốt mất nhánh `if (!grant)` của caller —
+    // dev thấy stack trace viem thay vì "chưa có Grant". Sai projectId ⇒ không
+    // thể có Grant, nên null mới là câu trả lời đúng.
+    if (!/^0x[0-9a-fA-F]{64}$/.test(projectId)) return null;
     const pid = projectId as `0x${string}`;
     const g = (await this.client.readContract({
       address: this.grantManager,
@@ -151,7 +156,17 @@ export class ChainGrantSource implements GrantSource {
   }
 }
 
+/**
+ * config.ts luôn khai báo grantManager cho cả Fuji lẫn mainnet, nên nhánh
+ * `gm ? chain : local` khiến LocalGrantSource KHÔNG BAO GIỜ chạy — fixture
+ * .grant-dev.json thành vô dụng dù tài liệu vẫn nói có. Nguồn local phải là
+ * lựa chọn tường minh: dùng nhầm fixture thay cho state on-chain nghĩa là
+ * checkpoint duyệt theo dữ liệu sửa được bằng tay, nên không thể để nó tự
+ * bật theo cấu hình.
+ */
 export function getGrantSource(): GrantSource {
+  if (process.env.SPONSORED_LOCAL_GRANT === '1') return new LocalGrantSource();
   const gm = (process.env.GRANT_MANAGER ?? getNetwork().grantManager) as `0x${string}` | undefined;
-  return gm ? new ChainGrantSource(gm) : new LocalGrantSource();
+  if (!gm) throw new Error('chưa có GrantManager cho mạng này — đặt GRANT_MANAGER, hoặc SPONSORED_LOCAL_GRANT=1 để dùng fixture dev');
+  return new ChainGrantSource(gm);
 }

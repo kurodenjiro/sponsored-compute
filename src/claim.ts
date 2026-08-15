@@ -148,8 +148,26 @@ export async function claimSponsoredGrant(opts: {
     const receipt = await pub.waitForTransactionReceipt({ hash });
     if (receipt.status !== 'success') return { ok: false, campaignId, projectId, transaction: hash, error: 'issueGrant reverted' };
 
-    const issued = await source.get(projectId);
-    if (!issued) return { ok: false, campaignId, projectId, transaction: hash, error: 'issueGrant confirmed but no Grant is readable for this project' };
+    /**
+     * Receipt về KHÔNG có nghĩa là mọi node RPC đã index xong block đó. Load
+     * balancer trả read sang node chậm hơn ⇒ grantOf() ra 0 ⇒ báo "claim
+     * failed" trong khi tiền ĐÃ commit on-chain. Hậu quả nặng: seat mất,
+     * projectId không được ghi, agent vĩnh viễn không tìm ra Grant đã trả tiền.
+     * Nên retry read: chỉ kết luận thất bại sau khi node thật sự bắt kịp.
+     */
+    let issued = await source.get(projectId);
+    for (let attempt = 0; !issued && attempt < 5; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+      issued = await source.get(projectId);
+    }
+    if (!issued) {
+      return {
+        ok: false, campaignId, projectId, transaction: hash,
+        // projectId phải đi kèm: seat đã bị tiêu, dev cần nó để cứu Grant.
+        error: `issueGrant confirmed (${hash}) but the Grant is still not readable. `
+          + `The campaign seat IS committed on-chain — re-run the claim to record projectId ${projectId}.`,
+      };
+    }
 
     recordProjectId(campaignId, projectId, cwd);
     const registry = await confirmWithRegistry({ campaignId, projectId, chainId, grantId: issued.grantId, owner: rewardWallet, signer: account.address, transaction: hash, repo: pointer.repo });

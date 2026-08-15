@@ -18,7 +18,50 @@ const GM_ABI = parseAbi([
   'function unwrap(uint256 grantId, address payTo, uint256 amount, bytes32 nonce)',
   'function claimGas(uint256 grantId, uint256 amount)',
   'function claimTranche(uint256 grantId)',
+  // Custom error phải có trong ABI thì viem mới giải mã được tên lỗi; thiếu nó
+  // thì mọi từ chối của contract đều hiện ra là "reverted" không lý do.
+  'error NotOwnerOfGrant()',
+  'error GrantRevokedErr()',
+  'error GrantExpired()',
+  'error MerchantNotAllowed()',
+  'error OverPerTxCap()',
+  'error OverDailyCap()',
+  'error OverVested()',
+  'error InvalidAsset()',
+  'error ZeroAmount()',
+  'error TrancheNotReady()',
+  'error TrancheSpendTooLow()',
+  'error TrancheDaysTooLow()',
+  'error AllTranchesClaimed()',
 ]);
+
+/** Đổi tên custom error của contract sang câu giải thích cho dev. */
+const REVERT_HINTS: Record<string, string> = {
+  OverPerTxCap: 'vượt trần mỗi giao dịch của Grant',
+  OverDailyCap: 'vượt trần chi trong ngày',
+  OverVested: 'vượt phần đã vest — chờ tranche kế tiếp',
+  GrantExpired: 'Grant đã hết hạn',
+  GrantRevokedErr: 'sponsor đã thu hồi Grant',
+  MerchantNotAllowed: 'payTo không nằm trong allowlist',
+  NotOwnerOfGrant: 'ví gọi không phải chủ Grant',
+  InvalidAsset: 'sai loại tài sản của Grant',
+  ZeroAmount: 'số tiền bằng 0',
+  TrancheNotReady: 'chưa đủ thời gian để mở tranche kế tiếp',
+  TrancheSpendTooLow: 'chưa tiêu đủ mức tối thiểu để mở tranche kế tiếp',
+  TrancheDaysTooLow: 'chưa đủ số ngày tối thiểu cho tranche kế tiếp',
+  AllTranchesClaimed: 'đã mở hết tranche',
+};
+
+/**
+ * Gas tường minh khiến giao dịch vẫn được gửi dù chắc chắn revert — dev mất gas
+ * và chỉ nhận "reverted". Simulate trước để biết lý do mà KHÔNG tốn gas.
+ */
+function revertReason(e: any): string | null {
+  const name = e?.cause?.data?.errorName ?? e?.data?.errorName
+    ?? e?.walk?.((x: any) => x?.data?.errorName)?.data?.errorName;
+  if (!name) return null;
+  return REVERT_HINTS[name] ? `${name} — ${REVERT_HINTS[name]}` : name;
+}
 
 /** Gas: ghi 3-4 slot + transfer ERC-20. 250k là dư. */
 const GAS = { gas: 250_000n, gasPrice: 25_000_000_000n };
@@ -122,18 +165,26 @@ export async function claimGasFromGrant(opts: {
   const account = privateKeyToAccount(await agentKey());
   const pub = createPublicClient({ chain, transport: http(net.rpc) });
   const wallet = createWalletClient({ account, chain, transport: http(net.rpc) });
+  const call = {
+    address: opts.grantManager,
+    abi: GM_ABI,
+    functionName: 'claimGas' as const,
+    args: [opts.grantId, opts.amount] as const,
+  };
   try {
-    const hash = await wallet.writeContract({
-      address: opts.grantManager,
-      abi: GM_ABI,
-      functionName: 'claimGas',
-      args: [opts.grantId, opts.amount],
-      ...GAS,
-    });
+    // Simulate trước: contract từ chối thì báo đúng lý do và không tốn gas.
+    await pub.simulateContract({ ...call, account });
+  } catch (e: any) {
+    const reason = revertReason(e);
+    return { ok: false, error: reason ? `claimGas bị từ chối: ${reason}` : (e?.shortMessage ?? e?.message ?? String(e)) };
+  }
+  try {
+    const hash = await wallet.writeContract({ ...call, ...GAS });
     const receipt = await pub.waitForTransactionReceipt({ hash });
     if (receipt.status !== 'success') return { ok: false, transaction: hash, error: 'claimGas reverted' };
     return { ok: true, transaction: hash };
   } catch (e: any) {
-    return { ok: false, error: e?.shortMessage ?? e?.message ?? String(e) };
+    const reason = revertReason(e);
+    return { ok: false, error: reason ? `claimGas bị từ chối: ${reason}` : (e?.shortMessage ?? e?.message ?? String(e)) };
   }
 }

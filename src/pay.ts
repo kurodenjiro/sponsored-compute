@@ -82,6 +82,7 @@ export async function payX402(opts: PayOptions): Promise<PayResult> {
   if (!opts.__unsafeSkipCheckpoint) {
     const decision = checkpoint({
       req, grant: opts.grant, callerMax: opts.maxAmount, chainId,
+      signerAddress: await opts.signer.address(),
     });
     if (!decision.ok) throw new CheckpointDenied(decision);
   }
