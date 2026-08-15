@@ -1,0 +1,30 @@
+{
+  "chainId": 43113,
+  "xsgd": "0xd769410dc8772695a7f55a304d2125320a65c2a5",
+  "merchantRegistry": "0x474fef451DDdA48A8b1C6F3450DAf8E76120A9Be",
+  "grantManager": "0x3230B5666d8De86d3079D07bb45A7075A1d0b043",
+  "merchants": [
+    {
+      "id": "supadb",
+      "name": "SupaDB",
+      "category": "database",
+      "payTo": "0xd077E3f3048AD97C50A08a31a95F4918278B31ac",
+      "id32": "0x0e980afbf315684f6e83119f891c3dce0d2bc6c02f7d48d15c0bd858b09bd059"
+    },
+    {
+      "id": "neonlite",
+      "name": "NeonLite",
+      "category": "database",
+      "payTo": "0x1f212B0a09393F82B7E60D18c2e663f13DA5f7F0",
+      "id32": "0x0e0ee014706da7bcfa26d7aaed4081bb27ebaa87398bdc1dc646d0053b92e654"
+    },
+    {
+      "id": "sentrywatch",
+      "name": "SentryWatch",
+      "category": "monitoring",
+      "payTo": "0x619cdF38C1ed117CA0484207f838910dce77De47",
+      "id32": "0x55710bc3ff35b5541e68ec18c5b4c8e96bd0f50b2a38d51ceef204b5da12adbc"
+    }
+  ],
+  "updatedAt": "2026-08-15T03:58:28.215Z"
+}

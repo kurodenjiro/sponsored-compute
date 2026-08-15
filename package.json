@@ -1,0 +1,30 @@
+{
+  "name": "sponsored-compute",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "sponsored-compute": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test:contracts": "npm --prefix contracts test",
+    "dev": "tsx src/cli.ts",
+    "address": "tsx src/cli.ts address",
+    "challenge": "tsx src/cli.ts challenge",
+    "card": "tsx src/cli.ts card",
+    "balance": "tsx src/cli.ts balance"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@napi-rs/keyring": "^1.1.6",
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "solc": "^0.8.36",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

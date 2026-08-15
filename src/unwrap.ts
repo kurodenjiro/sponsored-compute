@@ -1,0 +1,109 @@
+/**
+ * Gọi GrantManager.unwrap() — nhả ĐÚNG số tiền của lần chi này từ Grant sang
+ * ví agent, ngay TRƯỚC khi ký EIP-3009.
+ *
+ * Đây là compliance guard on-chain, chạy song song với checkpoint phía client:
+ *   - checkpoint (src/checkpoint.ts) chặn sớm, không tốn gas, ngoài context LLM
+ *   - unwrap()   chặn ở tầng contract, không ai bỏ qua được kể cả khi client bị sửa
+ *
+ * Hai lớp cùng một luật. Client hỏng thì contract vẫn giữ.
+ */
+
+import { createWalletClient, createPublicClient, http, parseAbi } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
+import { avalanche, avalancheFuji } from 'viem/chains';
+import { getNetwork, DEFAULT_CHAIN_ID } from './config.js';
+
+const GM_ABI = parseAbi([
+  'function unwrap(uint256 grantId, address payTo, uint256 amount, bytes32 nonce)',
+  'function claimTranche(uint256 grantId)',
+]);
+
+/** Gas: ghi 3-4 slot + transfer ERC-20. 250k là dư. */
+const GAS = { gas: 250_000n, gasPrice: 25_000_000_000n };
+
+async function agentKey(): Promise<`0x${string}`> {
+  if (process.env.AGENT_PRIVATE_KEY) return process.env.AGENT_PRIVATE_KEY as `0x${string}`;
+  const { Entry } = await import(/* webpackIgnore: true */ '@napi-rs/keyring');
+  const pk = new Entry('sponsored-compute', 'agent-eoa').getPassword();
+  if (!pk) throw new Error('không tìm thấy khoá agent trong keychain');
+  return pk as `0x${string}`;
+}
+
+export interface UnwrapResult {
+  ok: boolean;
+  transaction?: `0x${string}`;
+  error?: string;
+}
+
+/**
+ * @param nonce PHẢI là nonce sẽ dùng cho EIP-3009 — để dấu vết on-chain của
+ *              unwrap và của settlement khớp nhau, đối soát được theo dự án.
+ */
+export async function unwrapFromGrant(opts: {
+  grantManager: `0x${string}`;
+  grantId: bigint;
+  payTo: `0x${string}`;
+  amount: bigint;
+  nonce: `0x${string}`;
+  chainId?: number;
+}): Promise<UnwrapResult> {
+  const chainId = opts.chainId ?? DEFAULT_CHAIN_ID;
+  const net = getNetwork(chainId);
+  const chain = chainId === 43114 ? avalanche : avalancheFuji;
+
+  const account = privateKeyToAccount(await agentKey());
+  const pub = createPublicClient({ chain, transport: http(net.rpc) });
+  const wallet = createWalletClient({ account, chain, transport: http(net.rpc) });
+
+  try {
+    const hash = await wallet.writeContract({
+      address: opts.grantManager,
+      abi: GM_ABI,
+      functionName: 'unwrap',
+      args: [opts.grantId, opts.payTo, opts.amount, opts.nonce],
+      ...GAS,
+    });
+    const r = await pub.waitForTransactionReceipt({ hash });
+    if (r.status !== 'success') {
+      return { ok: false, transaction: hash, error: 'unwrap revert — contract từ chối' };
+    }
+    return { ok: true, transaction: hash };
+  } catch (e: any) {
+    return { ok: false, error: e?.shortMessage ?? e?.message ?? String(e) };
+  }
+}
+
+/**
+ * Xin tranche kế tiếp sau khi usage đạt điều kiện campaign.
+ * Không có oracle: GrantManager tự đọc `spent`, thời gian và số ngày đã dùng.
+ */
+export async function claimGrantTranche(opts: {
+  grantManager: `0x${string}`;
+  grantId: bigint;
+  chainId?: number;
+}): Promise<UnwrapResult> {
+  const chainId = opts.chainId ?? DEFAULT_CHAIN_ID;
+  const net = getNetwork(chainId);
+  const chain = chainId === 43114 ? avalanche : avalancheFuji;
+  const account = privateKeyToAccount(await agentKey());
+  const pub = createPublicClient({ chain, transport: http(net.rpc) });
+  const wallet = createWalletClient({ account, chain, transport: http(net.rpc) });
+
+  try {
+    const hash = await wallet.writeContract({
+      address: opts.grantManager,
+      abi: GM_ABI,
+      functionName: 'claimTranche',
+      args: [opts.grantId],
+      ...GAS,
+    });
+    const r = await pub.waitForTransactionReceipt({ hash });
+    if (r.status !== 'success') {
+      return { ok: false, transaction: hash, error: 'claimTranche revert — usage hoặc thời gian chưa đủ' };
+    }
+    return { ok: true, transaction: hash };
+  } catch (e: any) {
+    return { ok: false, error: e?.shortMessage ?? e?.message ?? String(e) };
+  }
+}

@@ -1,0 +1,16 @@
+.merchants.json
+.grant-dev.json
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+
+# Nested demo/contract workspaces
+**/node_modules/
+**/dist/
+**/.next/
+**/artifacts/
+**/cache/
+**/coverage/
+platform-demo/.env.local

@@ -1,0 +1,9 @@
+{
+  "name": "supadb-starter",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "//postinstall": "🔴 CHỈ ĐƯỢC IN MỘT DÒNG. Tuyệt đối không claim Grant ở đây: postinstall là bề mặt supply-chain, nhiều nơi chạy npm ci --ignore-scripts, và hành động liên quan tiền không bao giờ được chạy tự động lúc cài đặt.",
+    "postinstall": "node -e \"console.log('\\n  Dự án này có tài trợ hạ tầng từ SupaDB.\\n  Mở Claude Code và hỏi: \\\"dự án này có tài trợ không?\\\"\\n')\""
+  }
+}

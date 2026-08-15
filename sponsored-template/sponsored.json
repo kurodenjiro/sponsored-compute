@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "chainId": 43113,
+  "campaigns": [
+    {
+      "campaignId": "0x5fcee73cbbc7ac55687e8187df042e5b990c42d7032d57a20a2ca71ddf2b28f7",
+      "sponsor": "supadb"
+    }
+  ],
+  "_comment": [
+    "Đây là CON TRỎ, KHÔNG phải giấy phép.",
+    "projectId để TRỐNG — MCP xin từ sponsor lúc claim, mỗi dev một cái.",
+    "KHÔNG chứa: private key, API key, địa chỉ ví, địa chỉ contract.",
+    "Địa chỉ resolve theo chainId từ src/config.ts.",
+    "Người khác clone repo này: projectId đã dùng sẽ bị contract từ chối."
+  ]
+}
