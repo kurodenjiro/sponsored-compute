@@ -1,157 +1,159 @@
 # Sponsored Compute
 
-Purpose-bound XSGD credits for AI coding agents: sponsors fund a pool, projects receive a Grant, and the agent can only pay merchants approved through x402.
+Sponsored Compute lets a project sponsor give contributors purpose-bound XSGD credits for approved infrastructure. A contributor can use the credit only through an agent checkpoint and only with the merchant that the sponsor allowed.
 
-> **Demo chain:** Avalanche Fuji (`43113`). This is a PBM-compatible subset, not a full ERC-7291 implementation.
+The demo runs on **Avalanche Fuji** (`43113`) and uses an x402-style EIP-3009 payment flow. It is a focused PBM-compatible prototype, not a full ERC-7291 implementation.
 
-## Docs
+## What it solves
 
-- [Payment workflow](docs/WORKFLOW.md)
-- [Demo runbook](docs/DEMO.md)
-- [Architecture and decisions](docs/SPONSORED-COMPUTE.md)
-- [Research and options considered](docs/RESEARCH.md)
+A sponsor funds a campaign for a repository instead of sending tokens directly to an unknown contributor. When a contributor claims the campaign, the resulting Grant is bound to:
+
+- the repository campaign;
+- an approved merchant and its `payTo` wallet;
+- a per-transaction limit, daily limit, expiry, and revocation status; and
+- the exact x402 payment requirement.
+
+The agent never receives an unrestricted `unwrap` operation. It can pay a merchant only after the local checkpoint verifies the request.
 
 ## Architecture
 
 ```text
-Sponsor ── XSGD ──> GrantManager ── conditional unwrap ──> agent EOA
-                              │                                  │
-                       MerchantRegistry <── allowlist       EIP-3009 x402
-                              │                                  │
-                         merchant payTo <── settlement relay ─── platform API
+Sponsor
+  │ funds XSGD
+  ▼
+GrantManager ──► Grant for contributor ──► Agent checkpoint
+  │                                             │ validates policy
+  ▼                                             ▼
+MerchantRegistry ◄──────────────────────── x402 merchant API
+                                                  │
+                                        settlement relay + ledger
 ```
 
-The checkpoint runs inside `pay_for_service`; the MCP server never exposes `unwrap`, `sign`, or a policy bypass.
+On-chain contracts hold the authority. The web registry and Supabase tables provide discovery, payment history, and replay protection; neither can create a valid grant by itself.
 
-## Running the demo
+## Repository layout
+
+```text
+contracts/     Solidity contracts, deployment scripts, and Hardhat tests
+src/           Shared TypeScript: grants, policy checkpoint, signer, relay, CLI
+mcp/           MCP server exposed to coding agents
+web/           Next.js sponsor console, merchant dashboard, and API routes
+web/supabase/  SQL schema for persistent registry and payment data
+docs/          Product, security, workflow, research, and demo documentation
+scripts/       Local seed and merchant-generation utilities
+deployments/   Network deployment addresses
+```
+
+## Prerequisites
+
+- Node.js 20 or newer
+- An Avalanche Fuji wallet with test AVAX for relayer gas
+- XSGD on Fuji for funding a campaign
+- Supabase for any shared or Vercel deployment
+
+## Run locally
+
+Install the root tooling and build the CLI/MCP package:
 
 ```bash
 npm install
 npm run build
-npm run address
-npm run balance
+```
 
+Configure and run the web app:
+
+```bash
 cd web
+cp .env.example .env.local
 npm install
-cp .env.example .env.local  # add the relayer key for the AVAX-only wallet
 npm run dev
 ```
 
-One deployment serves the whole demo at `http://localhost:4030`:
+Open `http://localhost:4030`:
 
-- `/` — landing + prompt walkthrough
-- `/sponsor` — sponsor console
-- `/merchant` — merchant dashboard + settlement ledger
-- `/api/v1/query` — x402-metered API
+- `/` — landing page and agent walkthrough
+- `/sponsor` — create/fund a repository campaign
+- `/merchant` — merchant dashboard and settlement history
+- `/api/v1/query` — x402-protected merchant API
 
-Run the two extra demo merchants in separate terminals:
+Optional demo merchant instances:
 
 ```bash
-cd web && npm run dev:neon  # NeonLite :4032
-cd web && npm run dev:evil  # malicious merchant :4031
+cd web
+npm run dev:neon  # NeonLite on :4032
+npm run dev:evil  # malicious merchant on :4031
 ```
 
-The local MCP server is declared in `.mcp.json`. Five tools:
+## Environment configuration
+
+Start from [`web/.env.example`](web/.env.example). Never commit `.env.local` or a real private key.
+
+| Variable | Purpose | Required on Vercel |
+| --- | --- | --- |
+| `CHAIN_ID` | Avalanche network ID; Fuji is `43113` | Yes |
+| `MERCHANT_PAYTO` | Wallet that receives merchant payments | Yes |
+| `GRANT_MANAGER` | Contract address when not using the configured demo | As needed |
+| `SUPABASE_URL` | Supabase project URL | Yes |
+| `SUPABASE_SECRET_KEY` | Server-only Supabase secret key | Yes |
+| `RELAYER_PRIVATE_KEY` | Server-only wallet for settlement and testnet merchant approval | Yes |
+| `X402_SETTLEMENT_PROVIDER` | Use `self-relay` for the verified demo path | Yes |
+| `SPONSORED_REGISTRY_URL` | Public URL used by the CLI/MCP claim flow | Yes after deploy |
+| `SPONSORED_CLI_SPEC` | CLI package/GitHub spec emitted by the sponsor console | Yes until published |
+| `SPONSORED_MCP_SPEC` | MCP package/GitHub spec emitted by the sponsor console | Yes until published |
+
+`RELAYER_PRIVATE_KEY` must have Fuji AVAX. When `SPONSORED_AUTO_APPROVE_MERCHANTS=1`, it must also be the owner of the deployed MerchantRegistry. Do not enable automatic merchant approval for a mainnet deployment without a deliberate security review.
+
+## Supabase setup
+
+For local-only demos the app can use process memory, but that mode is unsafe for a serverless or multi-instance deployment: payment history disappears and nonce replay protection is not shared.
+
+Create a Supabase project, then run [`web/supabase/schema.sql`](web/supabase/schema.sql) in its SQL Editor. Add the project URL and server secret to your environment. The schema stores payment claims, settlement history, sponsored repositories, and reported grant claims.
+
+## Deploy to Vercel
+
+1. Push the repository to GitHub and import it in [Vercel](https://vercel.com/new).
+2. Set **Root Directory** to `web`.
+3. Add the variables from `web/.env.example` in **Settings → Environment Variables**. Set secrets for Production only unless preview environments need access.
+4. Ensure the Supabase schema has been run before deployment.
+5. Deploy using Vercel's defaults: `npm install` and `npm run build`.
+6. Copy the assigned production URL into `SPONSORED_REGISTRY_URL`, then redeploy.
+
+The Next.js route handlers run as Node.js serverless functions. No separate backend host is needed.
+
+## Agent setup
+
+The project ships MCP declarations for Claude Code and Codex. The available actions are:
 
 1. `list_sponsored_platforms(category)`
-2. `check_project_sponsorship()` — read-only; reads `sponsored.json` and verifies the campaign on-chain
-3. `claim_sponsored_grant()` — issues a Grant for the current wallet; call only when the user asks
+2. `check_project_sponsorship()`
+3. `claim_sponsored_grant()`
 4. `get_grant_status()`
 5. `pay_for_service(url, max_amount)`
 
-## Sponsor
+The first two are read-only. Claiming and paying create external effects and should be called only with explicit user approval.
 
-The main flow is `/sponsor` in `web/`: **paste a GitHub repo → fund XSGD → get one line to drop into the repo**. Sponsors never enter a developer's wallet — at funding time nobody knows who will build yet; the Grant is issued later, when a developer claims.
-
-Every on-chain id (`merchantId`, `campaignId`) is derived from the repo URL itself (`src/campaign.ts`), so two people who paste the same repo always land on the same campaign. The page reads Fuji state and sequences itself into one button:
-
-1. Connect a wallet (it becomes the merchant `payTo` and the campaign sponsor)
-2. Create the campaign — the per-developer Grant size is locked in at this point
-3. Approve + fund XSGD
-4. Get the install command — signs nothing, just re-reads the chain and generates the command
-
-The merchant a Grant can pay is the repo's own sponsor, not an arbitrary third party: `merchantId` is derived from the sponsor slug (the repo owner), so a campaign funded by `github.com/acme/widgets` only unlocks payments to `acme`'s own `payTo` — `pay_for_service` against a *different* merchant's API is correctly rejected by the checkpoint (`MERCHANT_NOT_ALLOWED`). Model this as "fund your own infra costs for contributors," not "fund a voucher redeemable anywhere."
-
-Merchants are **auto-approved** on testnet (the server signs with the `MerchantRegistry` owner key, see `web/app/api/registry/merchant`) so the demo doesn't stall on manual review. This is **disabled by default on mainnet** unless `SPONSORED_AUTO_APPROVE_MERCHANTS=1` is set explicitly — the allowlist exists to stop an attacker from registering their own wallet as a merchant and `unwrap`-ing a Grant straight to it (see `docs/SPONSORED-COMPUTE.md` §9).
-
-The lower-level scripts (`contracts/scripts/register.ts`, `scripts/seed.ts`, `npm run cli -- init`) still work for seeding data or running outside the UI.
-
-## Developer onboarding
+## Verify
 
 ```bash
-git clone <sponsored repo>
-cd <repo>
+npm run typecheck
+npm test
+
+cd web
+npm run build
 ```
 
-Open Claude Code (`.mcp.json`) or Codex CLI (`.codex/config.toml`) — both load the MCP server automatically — then ask:
+## Documentation
 
-> does this project have sponsorship?
+- [Payment workflow](docs/WORKFLOW.md)
+- [Architecture and security decisions](docs/SPONSORED-COMPUTE.md)
+- [Demo runbook](docs/DEMO.md)
+- [Research and alternatives](docs/RESEARCH.md)
+- [Decision log](docs/DECISION.md)
 
-The agent calls `check_project_sponsorship` (reads `sponsored.json`, verifies on-chain, signs nothing), then asks before calling `claim_sponsored_grant`. Claiming writes `projectId` back to `sponsored.json` and reports the claim to the registry for lookup — both are **best-effort**; the real Grant lives on-chain regardless of whether the registry write succeeds.
+## Security notes
 
-The install command a sponsor pastes into a repo looks like this — `npx --package` targets the GitHub repo directly, since the package isn't on npm yet (`SPONSORED_CLI_SPEC` / `SPONSORED_MCP_SPEC` in `web/.env.local` control this; see `.env.example`):
-
-```bash
-npx -y --package github:kurodenjiro/sponsored-compute sponsored-compute init \
-  --campaign 0x… --sponsor <slug> --repo <repo-url> --chain 43113
-```
-
-Running it from a local clone is equivalent:
-
-```bash
-npm run cli -- init --campaign 0x… --sponsor <slug> --repo <repo-url> --chain 43113
-npm run cli -- sponsorship         # read status, signs nothing
-npm run cli -- claim-grant         # issue a Grant for the current wallet
-```
-
-`init` writes `sponsored.json`, `.mcp.json`, and `.codex/config.toml` (project-scoped — Codex only loads it for trusted projects, and this never touches `~/.codex/config.toml`); it never writes a private key, API key, or developer wallet. The contract rejects a `projectId` that has already received a Grant — one Grant per wallet, so forking a repo can't clone the money.
-
-Both files point at the same MCP server, one per agent client — pick whichever one your agent reads:
-
-**`.mcp.json`** (Claude Code)
-```json
-{
-  "mcpServers": {
-    "sponsored-compute-<slug>-43113": {
-      "command": "npx",
-      "args": ["-y", "--package", "github:kurodenjiro/sponsored-compute", "sponsored-compute-mcp"]
-    }
-  }
-}
-```
-
-**`.codex/config.toml`** (Codex CLI)
-```toml
-[mcp_servers.sponsored-compute-<slug>-43113]
-command = "npx"
-args = ["-y", "--package", "github:kurodenjiro/sponsored-compute", "sponsored-compute-mcp"]
-```
-
-Once SupaDB usage reaches 0.30 XSGD, a developer can request the next tranche — different from `claim-grant` (issuing a Grant for the first time), the `claim` command here opens the next tranche of a Grant that already exists:
-
-```bash
-CHAIN_ID=43113 GRANT_MANAGER=0x3230B5666d8De86d3079D07bb45A7075A1d0b043 \
-PROJECT_ID=0xb34e1d43700c753c79fa98a98c434b921d9d3467e3f07f78ada83890ab8162bc \
-npm run cli -- claim
-```
-
-Verified on Fuji: transaction
-[`0xb7b03fa8…c387c`](https://testnet.snowtrace.io/tx/0xb7b03fa8d4dde103d5daaf9584f7924b72e9974c55951dae239901f6c29c387c)
-released tranche 2, raising the SupaDB Grant's vested balance from 0.50 to 1.00 XSGD.
-
-## Blocked-demo scene
-
-```bash
-# malicious merchant: the challenge carries a prompt-injection instruction and demands 30 XSGD
-cd web && npm run dev:evil
-```
-
-Calling the malicious endpoint through `pay_for_service` must be rejected by the checkpoint before `unwrap`: wrong `payTo`, over `max_amount`/per-tx cap. `npm run build` and `npm test` cover the merchant allowlist, vesting, expiry, revoke, replay policy, and binding the authorization to the exact invoice.
-
-## Operator-provided requirements
-
-- AVAX on Fuji for the signer (unwrap) and the self-relayer (settlement).
-- XSGD on Fuji for sponsors to fund campaigns.
-- A private key **only** for the self-relayer, in `web/.env.local`; never commit this file.
-- Self-relay is the default provider, already E2E-verified against the current merchant `payTo`. Only enable `0xgasless` after verifying it end-to-end with the exact XSGD/Fuji/recipient combination — the public facilitator currently rejects the SupaDB demo recipient and its docs don't publish a whitelisting process.
-- The `MerchantRegistry` owner wallet, to approve new merchants — unless using the testnet auto-approve path (`RELAYER_PRIVATE_KEY` must then be that same owner wallet; set `SPONSORED_AUTO_APPROVE_MERCHANTS=0` to turn it off).
+- Treat `RELAYER_PRIVATE_KEY` and `SUPABASE_SECRET_KEY` as production secrets.
+- Never place server secrets in variables prefixed with `NEXT_PUBLIC_`.
+- Supabase is required in deployed environments to make replay protection atomic across functions.
+- The x402 requirement is bound to the expected network, XSGD asset, recipient, amount, timeout, and resource before settlement.
+- The included automatic merchant-approval route is a Fuji demo convenience, not a recommended mainnet default.

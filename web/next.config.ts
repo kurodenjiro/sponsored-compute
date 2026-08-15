@@ -15,6 +15,14 @@ const config: NextConfig = {
   // @napi-rs/keyring là native .node — webpack không bundle được, phải để Node require thẳng
   serverExternalPackages: ['@napi-rs/keyring'],
   webpack: (cfg) => {
+    // The web app imports shared code from ../src. On Vercel, dependencies are
+    // installed in web/node_modules (the configured Root Directory), while
+    // Node's normal upward lookup from ../src would only search the repository
+    // root. Include the web dependency directory explicitly for those imports.
+    cfg.resolve.modules = [
+      path.join(process.cwd(), 'node_modules'),
+      ...(cfg.resolve.modules ?? []),
+    ];
     cfg.resolve.extensionAlias = {
       ...(cfg.resolve.extensionAlias ?? {}),
       '.js': ['.ts', '.tsx', '.js'],

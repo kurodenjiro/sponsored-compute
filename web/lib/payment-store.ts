@@ -5,6 +5,7 @@ export type PaymentEntry = {
   ok: boolean;
   payer?: string;
   amount: string;
+  resource?: string;
   tx?: string;
   error?: string;
 };
@@ -40,7 +41,7 @@ export async function releaseClaim(claim: Claim) {
 }
 
 export async function recordPayment(entry: PaymentEntry, claim?: Claim) {
-  if (!usingSupabase) { memoryLog.push(entry); return; }
+  if (!usingSupabase) { memoryLog.push({ ...entry, resource: claim?.resource ?? entry.resource }); return; }
   await rest('sponsored_compute_payments', {
     method: 'POST',
     body: JSON.stringify([{
@@ -53,9 +54,9 @@ export async function recordPayment(entry: PaymentEntry, claim?: Claim) {
 
 export async function paymentHistory(): Promise<PaymentEntry[]> {
   if (!usingSupabase) return memoryLog.slice(-20).reverse();
-  const response = await rest('sponsored_compute_payments?select=created_at,ok,payer,amount,tx,error&order=created_at.desc&limit=20');
-  const rows = await response.json() as Array<{ created_at: string; ok: boolean; payer: string | null; amount: string; tx: string | null; error: string | null }>;
-  return rows.map((row) => ({ at: new Date(row.created_at).getTime(), ok: row.ok, payer: row.payer ?? undefined, amount: row.amount, tx: row.tx ?? undefined, error: row.error ?? undefined }));
+  const response = await rest('sponsored_compute_payments?select=created_at,ok,payer,amount,resource,tx,error&order=created_at.desc&limit=20');
+  const rows = await response.json() as Array<{ created_at: string; ok: boolean; payer: string | null; amount: string; resource: string | null; tx: string | null; error: string | null }>;
+  return rows.map((row) => ({ at: new Date(row.created_at).getTime(), ok: row.ok, payer: row.payer ?? undefined, amount: row.amount, resource: row.resource ?? undefined, tx: row.tx ?? undefined, error: row.error ?? undefined }));
 }
 
 export const paymentStoreMode = usingSupabase ? 'supabase-rest' : 'memory';
