@@ -32,7 +32,7 @@ export const NETWORKS: Record<number, NetworkConfig> = {
     explorer: 'https://testnet.snowtrace.io',
     // verified live: /list → supportedAssets gồm XSGD 0xd769…c2a5, không cần API key
     facilitator: 'https://x402.0xgasless.com',
-    grantManager: '0x3230B5666d8De86d3079D07bb45A7075A1d0b043',
+    grantManager: '0xbd1ffd89b634810fe09069312d618641f43d9814',
     tokens: {
       XSGD: {
         address: '0xd769410dc8772695a7f55a304d2125320a65c2a5',

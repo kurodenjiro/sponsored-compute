@@ -1,8 +1,8 @@
 {
   "chainId": 43113,
   "xsgd": "0xd769410dc8772695a7f55a304d2125320a65c2a5",
-  "merchantRegistry": "0x474fef451DDdA48A8b1C6F3450DAf8E76120A9Be",
-  "grantManager": "0x3230B5666d8De86d3079D07bb45A7075A1d0b043",
+  "merchantRegistry": "0xff95f6f912f5d9dccb086cdb81119b7c357a82ba",
+  "grantManager": "0xbd1ffd89b634810fe09069312d618641f43d9814",
   "merchants": [
     {
       "id": "supadb",
@@ -26,5 +26,5 @@
       "id32": "0x55710bc3ff35b5541e68ec18c5b4c8e96bd0f50b2a38d51ceef204b5da12adbc"
     }
   ],
-  "updatedAt": "2026-08-15T03:58:28.215Z"
+  "deployedAt": "2026-08-15T11:20:51.022Z"
 }

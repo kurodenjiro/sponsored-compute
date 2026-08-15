@@ -15,6 +15,8 @@ export interface Platform {
   campaignId: string | null;
   sponsored: boolean;
   grantSgd: number | null;
+  /** Defaults to XSGD for existing payment campaigns. */
+  symbol?: 'XSGD' | 'AVAX';
   /** 0-100, do CON NGƯỜI đặt theo kỹ thuật — KHÔNG liên quan tới việc có tài trợ hay không */
   fitScore: number;
   note: string;
@@ -23,6 +25,10 @@ export interface Platform {
 
 export const PLATFORMS: Platform[] = [
   // --- database ---
+  { id: 'storedb-aws', name: 'StoreDB AWS', category: 'database', sponsored: true,
+    campaignId: '0x6f438efc0e0ecd571eaf3dbacd6628545efd2848d852060460800231d0ab622d',
+    grantSgd: 0.02, symbol: 'AVAX', fitScore: 90, x402: false,
+    note: 'AWS Lambda + DynamoDB starter with native AVAX gas sponsorship' },
   { id: 'supadb', name: 'SupaDB', category: 'database', sponsored: true,
     // campaign Fuji thật, không phải placeholder UI
     campaignId: '0x5fcee73cbbc7ac55687e8187df042e5b990c42d7032d57a20a2ca71ddf2b28f7',
@@ -69,7 +75,7 @@ export function renderPlatforms(category?: string): string {
   const nU = rows.length - nS;
 
   const lines = rows.map((p, i) => {
-    const tag = p.sponsored ? `[SPONSORED · ${p.grantSgd} SGD]` : '[UNSPONSORED]';
+    const tag = p.sponsored ? `[SPONSORED · ${p.grantSgd} ${p.symbol ?? 'XSGD'}]` : '[UNSPONSORED]';
     return `${i + 1}. ${p.name} ${tag}\n   technical fit ${p.fitScore}/100 · ${p.x402 ? 'x402' : 'no x402'}\n   ${p.note}`;
   });
 

@@ -56,7 +56,7 @@ export async function POST(request: Request) {
       );
     }
     if (campaign.funded === 0n) {
-      return NextResponse.json({ error: 'Campaign has no XSGD funded yet.', campaignId }, { status: 409 });
+      return NextResponse.json({ error: 'Campaign has no funds yet.', campaignId }, { status: 409 });
     }
 
     const record: SponsoredRepo = {

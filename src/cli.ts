@@ -22,7 +22,7 @@ import { parseChallenge, signPayment } from './x402.js';
 import { verifyWithFacilitator } from './pay.js';
 import { issueCard } from './card.js';
 import { getCampaign, getGrantSource } from './grant.js';
-import { claimGrantTranche } from './unwrap.js';
+import { claimGasFromGrant, claimGrantTranche } from './unwrap.js';
 import { runInit } from './init.js';
 import { formatAmount, parseRepoUrl, sponsorSlugOf } from './campaign.js';
 import { claimSponsoredGrant, readSponsorship } from './claim.js';
@@ -144,9 +144,12 @@ async function main() {
       for (const s of found) {
         console.log(`\n${s.pointer.repo ?? s.pointer.campaignId}  (sponsor ${s.pointer.sponsor}, chain ${s.pointer.chainId})`);
         if (!s.campaign) { console.log(`  ✗ ${s.reason}`); continue; }
-        const sgd = formatAmount;
-        console.log(`  grant/dev : ${sgd(s.campaign.grantAmount)} XSGD`);
-        console.log(`  còn lại   : ${sgd(s.campaign.funded - s.campaign.committed)} XSGD`);
+        const symbol = s.campaign.asset === 1 ? 'AVAX' : 'XSGD';
+        const decimals = s.campaign.asset === 1 ? 18 : 6;
+        const amount = (value: bigint) => formatAmount(value, decimals);
+        console.log(`  loại      : ${s.campaign.asset === 1 ? 'native AVAX gas grant' : 'XSGD x402 payment grant'}`);
+        console.log(`  grant/dev : ${amount(s.campaign.grantAmount)} ${symbol}`);
+        console.log(`  còn lại   : ${amount(s.campaign.funded - s.campaign.committed)} ${symbol}`);
         console.log(`  ${s.grantId ? `✓ ${wallet} đã có Grant ${s.grantId}` : s.claimable ? `→ claim được cho ${wallet}` : `✗ ${s.reason}`}`);
       }
       break;
@@ -173,6 +176,22 @@ async function main() {
       const out = await claimGrantTranche({ grantManager, grantId: BigInt(grant.grantId), chainId });
       if (!out.ok) throw new Error(out.error);
       console.log(`✓ tranche đã mở: ${net.explorer}/tx/${out.transaction}`);
+      break;
+    }
+
+    case 'claim-gas': {
+      const grantManager = (arg('grant-manager') ?? process.env.GRANT_MANAGER) as `0x${string}` | undefined;
+      const project = arg('project') ?? process.env.PROJECT_ID;
+      const amount = arg('amount');
+      if (!grantManager) throw new Error('thiếu --grant-manager hoặc GRANT_MANAGER');
+      if (!project) throw new Error('thiếu --project hoặc PROJECT_ID');
+      if (!amount) throw new Error('thiếu --amount (atomic AVAX, 18 decimals)');
+      const grant = await getGrantSource().get(project);
+      if (!grant) throw new Error('không tìm thấy Grant cho project này');
+      if (grant.asset !== 1) throw new Error('Grant này là XSGD, không phải AVAX gas grant');
+      const out = await claimGasFromGrant({ grantManager, grantId: BigInt(grant.grantId), amount: BigInt(amount), chainId });
+      if (!out.ok) throw new Error(out.error);
+      console.log(`✓ AVAX gas đã nhả: ${net.explorer}/tx/${out.transaction}`);
       break;
     }
 

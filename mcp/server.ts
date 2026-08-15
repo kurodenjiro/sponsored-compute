@@ -24,6 +24,7 @@ import { claimSponsoredGrant, readSponsorship } from '../src/claim.js';
 import { formatAmount } from '../src/campaign.js';
 import { getNetwork, DEFAULT_CHAIN_ID, isMainnet } from '../src/config.js';
 import { payX402, CheckpointDenied } from '../src/pay.js';
+import { claimGasFromGrant } from '../src/unwrap.js';
 import { renderPlatforms, findPlatform } from './platforms.js';
 
 const net = getNetwork();
@@ -99,6 +100,21 @@ const TOOLS = [
       required: ['url', 'max_amount'],
     },
   },
+  {
+    name: 'claim_avax_gas',
+    description:
+      'Release native AVAX from an AVAX gas Grant to the agent signer. ' +
+      'Call ONLY when the user explicitly asks for gas; never claim proactively. ' +
+      'amount is atomic AVAX (1 AVAX = 1000000000000000000). Contract caps, vesting and expiry are enforced.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        amount: { type: 'string', description: 'atomic AVAX units, 18 decimals' },
+        project_id: { type: 'string' },
+      },
+      required: ['amount'],
+    },
+  },
 ];
 
 const server = new Server(
@@ -122,15 +138,18 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
         if (found.length === 0) {
           return text('No sponsored.json in this project. It carries no sponsorship pointer, so there is nothing to claim.');
         }
-        const fmt = formatAmount;
         return text(found.map((s) => {
           const head = `${s.pointer.repo ?? s.pointer.campaignId} · sponsor ${s.pointer.sponsor} · chain ${s.pointer.chainId}`;
           if (!s.campaign) return `${head}\n  ✗ ${s.reason}`;
+          const decimals = s.campaign.asset === 1 ? 18 : 6;
+          const symbol = s.campaign.asset === 1 ? 'AVAX' : 'XSGD';
+          const fmt = (value: bigint) => formatAmount(value, decimals);
           const available = s.campaign.funded - s.campaign.committed;
           return [
             head,
-            `  grant per developer : ${fmt(s.campaign.grantAmount)} XSGD`,
-            `  uncommitted pool    : ${fmt(available)} XSGD  (${available / s.campaign.grantAmount} seats left)`,
+            `  grant per developer : ${fmt(s.campaign.grantAmount)} ${symbol}`,
+            `  uncommitted pool    : ${fmt(available)} ${symbol}  (${available / s.campaign.grantAmount} seats left)`,
+            `  grant mode          : ${s.campaign.asset === 1 ? 'native AVAX gas' : 'XSGD x402 payment'}`,
             `  caps                : ${fmt(s.campaign.perTxCap)}/transaction · ${fmt(s.campaign.dailyCap)}/day`,
             s.grantId ? `  ✓ already claimed by ${wallet} — Grant ${s.grantId}` : `  ${s.claimable ? '→ claimable' : '✗ ' + s.reason} for ${wallet}`,
           ].join('\n');
@@ -153,23 +172,26 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
             ? '  registry: claim recorded'
             : `  registry: not recorded (${out.registryError}) — the Grant is valid on-chain regardless`,
           '',
-          'Spend it with pay_for_service; the checkpoint enforces the caps on every call.',
+          'Use the tool matching its asset: pay_for_service for XSGD, claim_avax_gas for AVAX. Contract caps apply to both.',
         ].join('\n'));
       }
 
       case 'get_grant_status': {
         const g = await getGrantSource().get(args.project_id ?? process.env.PROJECT_ID ?? '0x');
         if (!g) return text('No Grant exists for this project. Ask the user to choose a platform first.');
-        const fmt = formatAmount;
+        const decimals = g.asset === 1 ? 18 : 6;
+        const symbol = g.asset === 1 ? 'AVAX' : 'XSGD';
+        const fmt = (value: bigint) => formatAmount(value, decimals);
         return text(
           [
             `Grant ${g.grantId}  (project ${g.projectId})`,
-            `  vested    : ${fmt(g.released)} / ${fmt(g.total)} SGD`,
-            `  spent     : ${fmt(g.spent)} SGD  (today ${fmt(g.spentToday)})`,
-            `  available : ${fmt(g.released - g.spent)} SGD`,
+            `  asset     : ${symbol} · ${g.asset === 1 ? 'gas grant' : 'x402 payment grant'}`,
+            `  vested    : ${fmt(g.released)} / ${fmt(g.total)} ${symbol}`,
+            `  spent     : ${fmt(g.spent)} ${symbol}  (today ${fmt(g.spentToday)})`,
+            `  available : ${fmt(g.released - g.spent)} ${symbol}`,
             `  caps      : ${fmt(g.perTxCap)}/transaction · ${fmt(g.dailyCap)}/day`,
             `  expiry    : ${new Date(g.expiry * 1000).toISOString()}`,
-            `  pay only to: ${g.allowedPayTo.join(', ') || '(none)'}`,
+            g.asset === 0 ? `  pay only to: ${g.allowedPayTo.join(', ') || '(none)'}` : '  destination : agent signer (gas only)',
             g.revoked ? '  ⚠️ REVOKED' : '',
           ].filter(Boolean).join('\n'),
         );
@@ -206,6 +228,20 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
             typeof res.body === 'string' ? res.body : JSON.stringify(res.body, null, 2),
           ].filter(Boolean).join('\n'),
         );
+      }
+
+      case 'claim_avax_gas': {
+        const grant = await getGrantSource().get(args.project_id ?? process.env.PROJECT_ID ?? '0x');
+        if (!grant) return text('No Grant exists for this project.');
+        if (grant.asset !== 1) return text('Denied: this is an XSGD payment Grant, not an AVAX gas Grant.');
+        let amount: bigint;
+        try { amount = BigInt(args.amount); } catch { return text('Denied: amount must be an integer in atomic AVAX units.'); }
+        if (amount <= 0n) return text('Denied: amount must be greater than zero.');
+        const grantManager = (process.env.GRANT_MANAGER ?? net.grantManager) as `0x${string}` | undefined;
+        if (!grantManager) return text('Denied: no GrantManager is configured for this network.');
+        const out = await claimGasFromGrant({ grantManager, grantId: BigInt(grant.grantId), amount });
+        if (!out.ok) return text(`AVAX gas claim denied: ${out.error}`);
+        return text(`✓ Released ${formatAmount(amount, 18)} AVAX to the agent signer.\ntransaction: ${net.explorer}/tx/${out.transaction}`);
       }
 
       default:

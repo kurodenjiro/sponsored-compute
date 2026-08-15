@@ -17,6 +17,8 @@ type Grant = {
   seatsLeft: number;
   perTxCapLabel: string;
   dailyCapLabel: string;
+  asset: 0 | 1;
+  symbol: 'XSGD' | 'AVAX';
   status: 'open' | 'paused' | 'exhausted';
   repoUrl?: string;
   repoSlug?: string;
@@ -34,7 +36,7 @@ export default function Home() {
   const [client, setClient] = useState<'claude' | 'codex'>('claude');
   const [copied, setCopied] = useState(false);
   const threadRef = useRef<HTMLDivElement>(null);
-  const selected = grants.find((grant) => grant.status === 'open') ?? grants[0];
+  const selected = grants.find((grant) => grant.status === 'open' && grant.asset === 0) ?? grants.find((grant) => grant.status === 'open') ?? grants[0];
 
   useEffect(() => {
     let cancelled = false;
@@ -128,7 +130,7 @@ export default function Home() {
           {loaded && grants.length === 0 && <p className="grant-empty">No on-chain MCP grant is currently readable. Nothing is substituted with demo data.</p>}
           {grants.map((grant) => <article key={grant.campaignId}>
             <div><strong>{grant.name}</strong><small>{grant.repoSlug ?? grant.category} · fit {grant.fitScore}/100</small></div>
-            <div><b>{grant.grantAmountLabel} XSGD</b><small>{grant.seatsLeft} seats · {grant.status}</small></div>
+            <div><b>{grant.grantAmountLabel} {grant.symbol}</b><small>{grant.seatsLeft} seats · {grant.status}</small></div>
           </article>)}
         </div>
         <footer><span>{grants.length} verified campaigns</span><span>MCP catalog + GrantManager</span></footer>
@@ -158,10 +160,10 @@ export default function Home() {
           {submitted && <div className="message user-message sent"><span>YOU · SENT</span><p>{prompt}</p></div>}
           {phase >= 1 && <div className="message agent-message"><span>CLAUDE</span><p>I’ll inspect the repo sponsorship first, then use only a verified grant. I won’t sign or spend outside its limits.</p></div>}
           {phase >= 2 && <div className="action-card tool-action"><header><span>MCP TOOL CALL</span><code>check_project_sponsorship</code></header><p>Reading <code>sponsored.json</code> and verifying the campaign against GrantManager…</p></div>}
-          {phase >= 3 && <div className="action-card tool-result"><header><span>TOOL RESULT</span><b>{selected ? 'VERIFIED' : 'NO ACTIVE GRANT'}</b></header>{selected ? <div className="result-grid"><span>provider <b>{selected.name}</b></span><span>repo <b>{selected.repoSlug ?? 'campaign registry'}</b></span><span>grant <b>{selected.grantAmountLabel} XSGD</b></span><span>available <b>{selected.availableLabel} XSGD</b></span></div> : <p>The live registry returned no spendable campaign. Claude stops here instead of inventing one.</p>}</div>}
-          {phase >= 4 && selected && <div className="action-card policy-action"><header><span>SECURE CHECKPOINT</span><b>PASS</b></header><div className="checks"><span>✓ merchant allowlisted</span><span>✓ 0.12 ≤ {selected.perTxCapLabel} XSGD cap</span><span>✓ daily cap {selected.dailyCapLabel} XSGD</span><span>✓ campaign active</span></div></div>}
-          {phase >= 5 && selected && <div className="action-card pay-action"><header><span>x402 PAYMENT</span><b>0.12 XSGD</b></header><p>Grant unwrap → EIP-3009 signature → merchant retry. The agent never receives an unrestricted budget.</p><div className="pay-line"><span /><span /><span /></div></div>}
-          {phase >= 6 && selected && <div className="message agent-message complete"><span>CLAUDE</span><p>Done — the onboarding flow is connected to {selected.name}. The merchant call settled from this repo’s grant and the receipt is now visible in the merchant ledger.</p></div>}
+          {phase >= 3 && <div className="action-card tool-result"><header><span>TOOL RESULT</span><b>{selected ? 'VERIFIED' : 'NO ACTIVE GRANT'}</b></header>{selected ? <div className="result-grid"><span>provider <b>{selected.name}</b></span><span>repo <b>{selected.repoSlug ?? 'campaign registry'}</b></span><span>grant <b>{selected.grantAmountLabel} {selected.symbol}</b></span><span>available <b>{selected.availableLabel} {selected.symbol}</b></span></div> : <p>The live registry returned no spendable campaign. Claude stops here instead of inventing one.</p>}</div>}
+          {phase >= 4 && selected && <div className="action-card policy-action"><header><span>SECURE CHECKPOINT</span><b>PASS</b></header><div className="checks">{selected.asset === 0 ? <><span>✓ merchant allowlisted</span><span>✓ 0.12 ≤ {selected.perTxCapLabel} XSGD cap</span></> : <><span>✓ native gas mode</span><span>✓ claim ≤ {selected.perTxCapLabel} AVAX cap</span></>}<span>✓ daily cap {selected.dailyCapLabel} {selected.symbol}</span><span>✓ campaign active</span></div></div>}
+          {phase >= 5 && selected && <div className="action-card pay-action"><header><span>{selected.asset === 0 ? 'x402 PAYMENT' : 'AVAX GAS CLAIM'}</span><b>{selected.asset === 0 ? '0.12 XSGD' : 'NATIVE AVAX'}</b></header><p>{selected.asset === 0 ? 'Grant unwrap → EIP-3009 signature → merchant retry. The agent never receives an unrestricted budget.' : 'GrantManager releases capped native AVAX to the agent signer for gas. It cannot use this Grant on the x402 payment path.'}</p><div className="pay-line"><span /><span /><span /></div></div>}
+          {phase >= 6 && selected && <div className="message agent-message complete"><span>CLAUDE</span><p>{selected.asset === 0 ? `Done — the onboarding flow is connected to ${selected.name}. The merchant call settled from this repo’s grant and the receipt is visible in the merchant ledger.` : `Done — the agent received capped AVAX gas from ${selected.name}. The claim is recorded on-chain and the XSGD payment path stayed disabled.`}</p></div>}
         </div>
         <footer><span>Actions are color-coded by trust boundary</span><b>{phase >= 6 && selected ? '✓ payment recorded' : 'checkpoint runs before signing'}</b></footer>
       </div>
