@@ -10,6 +10,7 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test:contracts": "npm --prefix contracts test",
+    "test:relay": "tsx src/relayer.test.ts",
     "dev": "tsx src/cli.ts",
     "address": "tsx src/cli.ts address",
     "challenge": "tsx src/cli.ts challenge",

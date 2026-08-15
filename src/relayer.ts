@@ -12,7 +12,7 @@
  * Chi phí: ~120.000 gas trên Avalanche ≈ vài cent mỗi lần settle.
  */
 
-import { createWalletClient, createPublicClient, http, parseAbi, hexToSignature, recoverTypedDataAddress } from 'viem';
+import { createWalletClient, createPublicClient, http, parseAbi, hexToSignature, isAddress, recoverTypedDataAddress } from 'viem';
 import { privateKeyToAccount, generatePrivateKey } from 'viem/accounts';
 import { avalanche, avalancheFuji } from 'viem/chains';
 import { getNetwork, DEFAULT_CHAIN_ID } from './config.js';
@@ -60,6 +60,48 @@ export interface SettleResult {
 }
 
 /**
+ * Một chữ ký EIP-3009 chỉ có ý nghĩa cho đúng hoá đơn mà merchant vừa phát.
+ *
+ * Không được chỉ kiểm tra chữ ký: một authorization hợp lệ cho recipient/amount
+ * khác có thể bị gửi vào endpoint này. Lớp này bind payload vào challenge trước
+ * khi claim nonce hoặc broadcast transaction.
+ */
+export function validateAuthorizationBinding(
+  req: PaymentRequirement,
+  auth: Authorization,
+  now = Math.floor(Date.now() / 1000),
+): string | null {
+  if (!isAddress(auth.from)) return 'authorization.from không phải địa chỉ EVM hợp lệ';
+  if (!isAddress(auth.to) || auth.to.toLowerCase() !== req.payTo.toLowerCase()) {
+    return 'authorization.to không khớp merchant payTo trong payment requirement';
+  }
+  if (!/^0x[0-9a-fA-F]{64}$/.test(auth.nonce)) return 'authorization.nonce không phải bytes32 hợp lệ';
+
+  let value: bigint;
+  let validAfter: bigint;
+  let validBefore: bigint;
+  try {
+    value = BigInt(auth.value);
+    validAfter = BigInt(auth.validAfter);
+    validBefore = BigInt(auth.validBefore);
+  } catch {
+    return 'authorization chứa value hoặc thời gian không hợp lệ';
+  }
+
+  if (value !== BigInt(req.amount)) return 'authorization.value không khớp giá của merchant';
+  const nowSeconds = BigInt(now);
+  if (validAfter > nowSeconds || validBefore <= nowSeconds) {
+    return 'authorization chưa hiệu lực hoặc đã hết hạn';
+  }
+  // Chỉ nhận một chữ ký có lifetime xấp xỉ timeout merchant công bố. 30 giây
+  // tolerance dành cho độ trễ giữa lúc client ký và lúc merchant xử lý.
+  if (validBefore > nowSeconds + BigInt(req.maxTimeoutSeconds + 30)) {
+    return 'authorization có thời hạn dài hơn payment requirement cho phép';
+  }
+  return null;
+}
+
+/**
  * Submit transferWithAuthorization trực tiếp lên XSGD.
  * Recipient là bất kỳ ai — không có allowlist ở tầng contract.
  */
@@ -70,6 +112,8 @@ export async function settleDirect(
   chainId = DEFAULT_CHAIN_ID,
 ): Promise<SettleResult> {
   const net = getNetwork(chainId);
+  const bound = validateAuthorizationBinding(req, auth);
+  if (bound) return { success: false, payer: auth.from, error: bound };
   const chain = viemChain(chainId);
   const pk = await relayerKey();
   const account = privateKeyToAccount(pk);

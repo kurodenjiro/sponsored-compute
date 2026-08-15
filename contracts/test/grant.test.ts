@@ -111,6 +111,17 @@ describe('GrantManager', () => {
     ).to.be.rejected;
   });
 
+  it('merchant bị deactivate biến mất khỏi allowlist và không thể unwrap', async () => {
+    const { gm, registry, agent, dev } = await deploy();
+    await gm.write.issueGrant([CAMPAIGN_ID, PROJECT_ID, dev.account.address, agent.account.address]);
+    await registry.write.deactivate([MERCHANT_ID]);
+
+    expect(await gm.read.allowedPayTo([1n])).to.deep.equal([]);
+    await expect(
+      gm.write.unwrap([1n, dev.account.address, SGD('1'), keccak256(toHex('disabled'))], { account: agent.account }),
+    ).to.be.rejected;
+  });
+
   it('claimTranche cần đủ thời gian VÀ đủ mức chi', async () => {
     const { gm, agent, dev } = await deploy();
     await gm.write.issueGrant([CAMPAIGN_ID, PROJECT_ID, dev.account.address, agent.account.address]);

@@ -300,7 +300,10 @@ contract GrantManager {
     function allowedPayTo(uint256 grantId) external view returns (address[] memory out) {
         Grant storage g = grants[grantId];
         address p = registry.payToOf(g.merchantId);
-        out = new address[](p == address(0) ? 0 : 1);
-        if (p != address(0)) out[0] = p;
+        // Return the same allowlist state that unwrap() enforces. A deactivated
+        // merchant must disappear from client-side checkpoint data immediately.
+        bool allowed = p != address(0) && registry.isAllowed(g.merchantId, p);
+        out = new address[](allowed ? 1 : 0);
+        if (allowed) out[0] = p;
     }
 }

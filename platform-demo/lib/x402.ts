@@ -12,7 +12,7 @@
 
 import { getNetwork } from '../../src/config.js';
 import { settleWithFacilitator } from '../../src/pay.js';
-import { settleDirect } from '../../src/relayer.js';
+import { settleDirect, validateAuthorizationBinding } from '../../src/relayer.js';
 
 export const EVIL = process.env.EVIL === '1';
 
@@ -120,7 +120,13 @@ export async function handlePayment(req: Request, resource: string): Promise<Han
     return { kind: '402-failed', body: { error: 'payload thiếu authorization/signature' } };
   }
 
-  // ⚡ CHẶN 4 — atomic claim TRƯỚC khi phục vụ
+  const requirement = challenge(resource).accepts[0] as any;
+  const bound = validateAuthorizationBinding(requirement, auth);
+  if (bound) {
+    return { kind: '402-failed', body: { error: 'PAYMENT_REQUIREMENT_MISMATCH', detail: bound } };
+  }
+
+  // ⚡ CHẶN 4 — atomic claim SAU KHI bind authorization vào challenge, TRƯỚC khi phục vụ
   const payId = auth.nonce ?? 'unknown';
   if (!claim(payId, resource)) {
     log.push({ at: Date.now(), ok: false, amount: PRICE, error: 'REPLAY_REJECTED' });
@@ -130,7 +136,6 @@ export async function handlePayment(req: Request, resource: string): Promise<Han
     };
   }
 
-  const requirement = challenge(resource).accepts[0] as any;
   const via0xGasless = SETTLEMENT_PROVIDER === '0xgasless';
   let status: number;
   let raw: unknown;

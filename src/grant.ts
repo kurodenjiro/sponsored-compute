@@ -60,7 +60,12 @@ export class LocalGrantSource implements GrantSource {
 export const GRANT_MANAGER_ABI = parseAbi([
   'function grantOf(bytes32 projectId) view returns (uint256 grantId, bytes32 merchantId, address signer, uint256 total, uint256 released, uint256 spent, uint256 spentToday, uint256 perTxCap, uint256 dailyCap, uint64 expiry, bool revoked)',
   'function allowedPayTo(uint256 grantId) view returns (address[])',
+  'function registry() view returns (address)',
   'function campaigns(bytes32) view returns (address sponsor, bytes32 merchantId, uint256 funded, uint256 committed, uint256 grantAmount, uint32 trancheCount, uint32 tranchePeriod, uint256 minSpendPerTranche, uint32 minDaysPerTranche, uint64 grantValidity, uint256 perTxCap, uint256 dailyCap, address attestor, bool paused)',
+]);
+
+const MERCHANT_REGISTRY_ABI = parseAbi([
+  'function isAllowed(bytes32 id, address payTo) view returns (bool)',
 ]);
 
 /** Kiểm campaign trước onboarding; không ghi con trỏ tới campaign giả hoặc đã pause. */
@@ -104,12 +109,27 @@ export class ChainGrantSource implements GrantSource {
 
     if (g[0] === 0n) return null;
 
-    const allowedPayTo = (await this.client.readContract({
+    const candidates = (await this.client.readContract({
       address: this.grantManager,
       abi: GRANT_MANAGER_ABI,
       functionName: 'allowedPayTo',
       args: [g[0]],
     })) as `0x${string}`[];
+
+    // Defense in depth for deployments made before allowedPayTo() itself was
+    // made fail-closed: always read the live registry state again.
+    const registry = await this.client.readContract({
+      address: this.grantManager,
+      abi: GRANT_MANAGER_ABI,
+      functionName: 'registry',
+    }) as `0x${string}`;
+    const statuses = await Promise.all(candidates.map((payTo) => this.client.readContract({
+      address: registry,
+      abi: MERCHANT_REGISTRY_ABI,
+      functionName: 'isAllowed',
+      args: [g[1], payTo],
+    })));
+    const allowedPayTo = candidates.filter((_, index) => statuses[index]);
 
     return {
       grantId: String(g[0]), merchantId: g[1], projectId, signer: g[2],
