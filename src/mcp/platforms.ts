@@ -1,7 +1,7 @@
 /**
  * Danh mục nền tảng.
  *
- * 🔴 BA LUẬT LIÊM CHÍNH (SPONSORED-COMPUTE.md §6) — vi phạm là mất lý do tồn tại:
+ * 🔴 BA LUẬT LIÊM CHÍNH (docs/SPONSORED-COMPUTE.md §6) — vi phạm là mất lý do tồn tại:
  *   1. LUÔN hiện cả lựa chọn KHÔNG tài trợ, đánh dấu rõ
  *   2. KHÔNG BAO GIỜ bán thứ hạng — xếp theo độ phù hợp kỹ thuật
  *   3. CHỈ hiện khi USER hỏi — agent không tự tạo nhu cầu

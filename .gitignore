@@ -1,5 +1,9 @@
 .merchants.json
 .grant-dev.json
+.codex/
+.DS_Store
+*.tsbuildinfo
+*.log
 node_modules/
 dist/
 .env
@@ -13,5 +17,6 @@ dist/
 **/artifacts/
 **/cache/
 **/coverage/
+**/.vercel/
 slides/*.inspect.ndjson
 platform-demo/.env.local

@@ -1,7 +1,7 @@
 /**
  * CHECKPOINT — quyết định CÓ KÝ hay KHÔNG.
  *
- * 🔴 LUẬT 1 (SPONSORED-COMPUTE.md §6): module này KHÔNG BAO GIỜ được expose
+ * 🔴 LUẬT 1 (docs/SPONSORED-COMPUTE.md §6): module này KHÔNG BAO GIỜ được expose
  * thành MCP tool. Nó chạy BÊN TRONG pay_for_service(). LLM không thấy,
  * không gọi được, không bỏ qua được.
  *

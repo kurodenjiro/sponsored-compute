@@ -1,7 +1,7 @@
 /**
  * Luồng thanh toán x402 hoàn chỉnh — dùng chung cho MỌI endpoint (card, platform, API).
  *
- * 🔴 Thứ tự BẤT BIẾN (SPONSORED-COMPUTE.md §8.3):
+ * 🔴 Thứ tự BẤT BIẾN (docs/SPONSORED-COMPUTE.md §8.3):
  *   402 → CHECKPOINT → (unwrap) → ký → retry
  * Checkpoint LUÔN chạy trước khi ký. Không có nhánh nào bỏ qua nó.
  */

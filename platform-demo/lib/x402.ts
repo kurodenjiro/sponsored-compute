@@ -44,7 +44,7 @@ export function history() {
 /**
  * ATOMIC CLAIM — chống replay (1 chữ ký → n lần được phục vụ).
  * Bản demo dùng Map; production dùng DynamoDB conditional write
- * `attribute_not_exists(pay_id)` (SPONSORED-COMPUTE.md §8).
+ * `attribute_not_exists(pay_id)` (docs/SPONSORED-COMPUTE.md §8).
  */
 const claimed = new Map<string, number>();
 const TTL_MS = 10 * 60 * 1000;

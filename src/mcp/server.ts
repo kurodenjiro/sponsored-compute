@@ -2,7 +2,7 @@
 /**
  * MCP server — bề mặt DUY NHẤT mà agent (Claude Code / Codex / Cursor) nhìn thấy.
  *
- * 🔴 LUẬT 1 (SPONSORED-COMPUTE.md §6): CHỈ ba tool dưới đây.
+ * 🔴 LUẬT 1 (docs/SPONSORED-COMPUTE.md §6): CHỈ ba tool dưới đây.
  *    KHÔNG expose unwrap / sign / check_policy. Checkpoint chạy BÊN TRONG
  *    pay_for_service — LLM không thấy, không gọi được, không bỏ qua được.
  *

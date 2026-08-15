@@ -9,13 +9,18 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
+    "test": "npm run test:relay && npm run test:checkpoint && npm run test:contracts",
     "test:contracts": "npm --prefix contracts test",
+    "test:checkpoint": "tsx src/checkpoint.test.ts",
     "test:relay": "tsx src/relayer.test.ts",
     "dev": "tsx src/cli.ts",
     "address": "tsx src/cli.ts address",
     "challenge": "tsx src/cli.ts challenge",
     "card": "tsx src/cli.ts card",
     "balance": "tsx src/cli.ts balance"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",

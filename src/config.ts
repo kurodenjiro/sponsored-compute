@@ -1,6 +1,6 @@
 /**
  * Network registry. Địa chỉ KHÔNG bao giờ hardcode ở nơi khác —
- * mọi thứ resolve theo chainId từ đây (xem SPONSORED-COMPUTE.md §7.6).
+ * mọi thứ resolve theo chainId từ đây (xem docs/SPONSORED-COMPUTE.md §7.6).
  */
 
 export interface TokenConfig {

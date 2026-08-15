@@ -4,6 +4,13 @@ XSGD tài trợ có ràng buộc mục đích cho AI coding agent: sponsor ký q
 
 > **Demo chain:** Avalanche Fuji (`43113`). Đây là PBM-compatible subset, không phải full ERC-7291.
 
+## Tài liệu
+
+- [Workflow thanh toán](docs/WORKFLOW.md)
+- [Runbook demo](docs/DEMO.md)
+- [Kiến trúc và quyết định](docs/SPONSORED-COMPUTE.md)
+- [Nghiên cứu và so sánh phương án](docs/RESEARCH.md)
+
 ## Kiến trúc
 
 ```text
@@ -89,7 +96,7 @@ nhả tranche 2, nâng số dư đã vest của SupaDB Grant từ 0.50 lên 1.00
 cd platform-demo && npm run dev:evil
 ```
 
-Gọi endpoint độc qua `pay_for_service` phải bị checkpoint từ chối trước `unwrap`: sai `payTo`, vượt `max_amount`/per-tx cap. `npm run build`, `npx tsx src/checkpoint.test.ts` và `cd contracts && npx hardhat test` bao gồm giới hạn merchant, vesting, expiry, revoke và replay policy.
+Gọi endpoint độc qua `pay_for_service` phải bị checkpoint từ chối trước `unwrap`: sai `payTo`, vượt `max_amount`/per-tx cap. `npm run build` và `npm test` bao gồm giới hạn merchant, vesting, expiry, revoke, replay policy và binding authorization vào đúng invoice.
 
 ## Cần do người vận hành cung cấp
 

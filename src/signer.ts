@@ -111,7 +111,7 @@ export async function getSigner(kind = process.env.WALLET_KIND ?? 'local'): Prom
   if (kind !== 'local') {
     throw new Error(
       `wallet="${kind}" chưa hỗ trợ. Crossmint là ERC-4337 smart account → không ký được ` +
-      `EIP-3009 cho XSGD (XSGD thiếu ERC-1271). Xem SPONSORED-COMPUTE.md §2.`,
+      `EIP-3009 cho XSGD (XSGD thiếu ERC-1271). Xem docs/SPONSORED-COMPUTE.md §2.`,
     );
   }
   return LocalKeyringSigner.load();
