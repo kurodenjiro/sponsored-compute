@@ -4,9 +4,9 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 const steps = [
-  ['DISCOVER', 'Tôi cần database cho MVP. Có lựa chọn phù hợp và được tài trợ không?', '3 có tài trợ · 2 không tài trợ. Xếp theo technical fit — không theo tài trợ.'],
-  ['VALIDATE', 'Dùng SupaDB, nhưng đừng vượt 0.12 XSGD cho lần gọi này.', 'Checkpoint xác minh merchant, max amount, vesting, expiry và cap trước khi ký.'],
-  ['SETTLE', 'Gọi API và chỉ thanh toán nếu challenge hợp lệ.', 'Grant unwrap đúng số tiền → EIP-3009 → x402 API trả dữ liệu.'],
+  ['DISCOVER', 'I need a database for this MVP. Are there strong options with sponsored credits?', '2 sponsored · 2 unsponsored. Ranked by technical fit — never by sponsorship.'],
+  ['VALIDATE', 'Use SupaDB, but never spend more than 0.12 XSGD on this call.', 'The checkpoint verifies the merchant, maximum amount, vesting, expiry, and caps before signing.'],
+  ['SETTLE', 'Call the API and pay only when the challenge is valid.', 'The Grant unwraps the exact amount → EIP-3009 → the x402 API returns data.'],
 ] as const;
 
 export default function Home() {

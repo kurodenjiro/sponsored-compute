@@ -29,18 +29,18 @@ const TOOLS = [
   {
     name: 'list_sponsored_platforms',
     description:
-      'Liệt kê nền tảng cho một nhóm dịch vụ (database, monitoring...). ' +
-      'LUÔN gồm cả lựa chọn KHÔNG tài trợ, xếp theo độ phù hợp kỹ thuật. ' +
-      'CHỈ gọi khi người dùng hỏi — không tự gợi ý.',
+      'List platforms for a service category (database, monitoring, and more). ' +
+      'Always includes unsponsored options and ranks by technical fit. ' +
+      'Call only when the user asks; never create demand proactively.',
     inputSchema: {
       type: 'object',
-      properties: { category: { type: 'string', description: 'vd "database", "monitoring"' } },
+      properties: { category: { type: 'string', description: 'for example: "database" or "monitoring"' } },
     },
   },
   {
     name: 'get_grant_status',
     description:
-      'Trạng thái Grant hiện tại: đã vest bao nhiêu, đã tiêu bao nhiêu, trần, hạn dùng.',
+      'Current Grant status: vested and spent amounts, caps, expiry, and approved recipients.',
     inputSchema: {
       type: 'object',
       properties: { project_id: { type: 'string' } },
@@ -49,9 +49,9 @@ const TOOLS = [
   {
     name: 'pay_for_service',
     description:
-      'Gọi một URL; nếu trả HTTP 402 thì tự thanh toán bằng Grant rồi thử lại. ' +
-      'max_amount là trần cứng tính bằng đơn vị nguyên (1000000 = 1.00 SGD) — BẮT BUỘC. ' +
-      'Nếu endpoint đòi nhiều hơn, hoặc không nằm trong allowlist của Grant, lệnh sẽ TỪ CHỐI.',
+      'Call a URL; if it returns HTTP 402, pay from the Grant and retry. ' +
+      'max_amount is a required hard cap in atomic units (1000000 = 1.00 SGD). ' +
+      'The call is denied when the endpoint exceeds that cap or is outside the Grant allowlist.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -83,18 +83,18 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
 
       case 'get_grant_status': {
         const g = await getGrantSource().get(args.project_id ?? process.env.PROJECT_ID ?? '0x');
-        if (!g) return text('Chưa có Grant cho dự án này. Hỏi người dùng chọn nền tảng trước.');
+        if (!g) return text('No Grant exists for this project. Ask the user to choose a platform first.');
         const fmt = (v: bigint) => (Number(v) / 1e6).toFixed(2);
         return text(
           [
             `Grant ${g.grantId}  (project ${g.projectId})`,
-            `  đã vest   : ${fmt(g.released)} / ${fmt(g.total)} SGD`,
-            `  đã tiêu   : ${fmt(g.spent)} SGD  (hôm nay ${fmt(g.spentToday)})`,
-            `  còn dùng  : ${fmt(g.released - g.spent)} SGD`,
-            `  trần      : ${fmt(g.perTxCap)}/giao dịch · ${fmt(g.dailyCap)}/ngày`,
-            `  hạn       : ${new Date(g.expiry * 1000).toISOString()}`,
-            `  chỉ trả cho: ${g.allowedPayTo.join(', ') || '(chưa có)'}`,
-            g.revoked ? '  ⚠️ ĐÃ BỊ THU HỒI' : '',
+            `  vested    : ${fmt(g.released)} / ${fmt(g.total)} SGD`,
+            `  spent     : ${fmt(g.spent)} SGD  (today ${fmt(g.spentToday)})`,
+            `  available : ${fmt(g.released - g.spent)} SGD`,
+            `  caps      : ${fmt(g.perTxCap)}/transaction · ${fmt(g.dailyCap)}/day`,
+            `  expiry    : ${new Date(g.expiry * 1000).toISOString()}`,
+            `  pay only to: ${g.allowedPayTo.join(', ') || '(none)'}`,
+            g.revoked ? '  ⚠️ REVOKED' : '',
           ].filter(Boolean).join('\n'),
         );
       }
@@ -125,7 +125,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
         return text(
           [
             `HTTP ${res.status}` +
-              (res.paidAmount > 0n ? ` · đã trả ${(Number(res.paidAmount) / 1e6).toFixed(2)} SGD` : ''),
+              (res.paidAmount > 0n ? ` · paid ${(Number(res.paidAmount) / 1e6).toFixed(2)} SGD` : ''),
             res.settlementHeader ? `settlement: ${res.settlementHeader}` : '',
             typeof res.body === 'string' ? res.body : JSON.stringify(res.body, null, 2),
           ].filter(Boolean).join('\n'),
@@ -133,12 +133,12 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       }
 
       default:
-        return text(`Tool không rõ: ${name}`);
+        return text(`Unknown tool: ${name}`);
     }
   } catch (e: any) {
-    // Checkpoint từ chối là kết quả HỢP LỆ — báo rõ lý do, KHÔNG gợi ý cách lách.
+    // A checkpoint denial is a valid result: state the reason without suggesting a bypass.
     if (e instanceof CheckpointDenied) return text(e.message);
-    return text(`Lỗi: ${e?.message ?? String(e)}`);
+    return text(`Error: ${e?.message ?? String(e)}`);
   }
 });
 
@@ -151,6 +151,6 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error('[sponsored-compute] không khởi động được:', e);
+  console.error('[sponsored-compute] failed to start:', e);
   process.exit(1);
 });
