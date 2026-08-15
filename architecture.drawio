@@ -1,0 +1,189 @@
+<mxfile host="app.diagrams.net" agent="claude-code" version="24.7.17" type="device">
+  <diagram name="Architecture" id="sponsored-compute-architecture">
+    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1700" pageHeight="1180" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ===================== LEGEND ===================== -->
+        <mxCell id="legend" value="Sponsored Compute — Architecture &amp; Data Flow" style="text;html=1;fontSize=20;fontStyle=1;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="0" width="700" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== CONTAINERS ===================== -->
+        <mxCell id="c_webapp" value="Vercel — Next.js Web App (serverless functions)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#82b366;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;fontStyle=1;fontSize=13;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1160" y="30" width="280" height="250" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c_chain" value="Avalanche Fuji · chainId 43113 (on-chain)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#d79b00;verticalAlign=top;align=left;spacingLeft=10;spacingTop=6;fontStyle=1;fontSize=13;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="560" y="330" width="700" height="150" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== CLIENTS ===================== -->
+        <mxCell id="n_sponsor" value="Sponsor&#10;(browser wallet)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="50" width="200" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="n_dev" value="Developer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="300" y="50" width="200" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="n_agent" value="AI Coding Agent&#10;(Claude Code / Codex)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="300" y="160" width="200" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== MCP / APP LOGIC ===================== -->
+        <mxCell id="n_mcp" value="MCP Server (stdio)&#10;list_sponsored_platforms&#10;check_project_sponsorship&#10;claim_sponsored_grant&#10;get_grant_status&#10;pay_for_service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="580" y="40" width="240" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="n_checkpoint" value="Checkpoint&#10;(off-LLM policy enforcement)&#10;never exposed as a callable tool" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="580" y="180" width="240" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="n_signer" value="Local EOA Signer&#10;(OS Keychain / AGENT_PRIVATE_KEY)&#10;signs EIP-3009, never leaves the host" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="860" y="180" width="240" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== WEB APP (VERCEL) ===================== -->
+        <mxCell id="n_sponsor_console" value="/sponsor&#10;Sponsor Console" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1180" y="70" width="220" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="n_merchant_dash" value="/merchant&#10;Merchant Dashboard" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1180" y="135" width="220" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="n_api_routes" value="/api/registry · /api/grants · /api/history" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1180" y="200" width="220" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== CHAIN LAYER ===================== -->
+        <mxCell id="n_registry" value="MerchantRegistry&#10;merchant allowlist, payTo per project" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="580" y="370" width="210" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="n_grant" value="GrantManager&#10;(PBM-compatible subset)&#10;caps, expiry, vesting, revoke" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="820" y="370" width="210" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="n_xsgd" value="XSGD (ERC-20)&#10;transferWithAuthorization&#10;(EIP-3009)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="370" width="180" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== SERVICES ===================== -->
+        <mxCell id="n_merchantapi" value="Merchant API&#10;x402-protected (e.g. SupaDB /api/v1/query)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="580" y="520" width="240" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="n_facilitator" value="x402 Facilitator&#10;self-relay / 0xGasless&#10;/verify · /settle" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="860" y="520" width="240" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== DATA LAYER ===================== -->
+        <mxCell id="n_supabase" value="Supabase&#10;payment history · campaigns · claimed grants · replay/nonce store (atomic, serverless-safe)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b0e3e6;strokeColor=#0e8088;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="580" y="660" width="520" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== EDGES ===================== -->
+        <mxCell id="e1" value="fund + create campaign" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="n_sponsor" target="n_sponsor_console">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e2" value="fund / createCampaign / issueGrant (signed tx)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="n_sponsor_console" target="n_grant">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e3" value="&quot;I need a database&quot;" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="n_dev" target="n_agent">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e4" value="list / check / claim / pay_for_service" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="n_agent" target="n_mcp">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e5" value="claim_sponsored_grant → issueGrant()" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="n_mcp" target="n_grant">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e6" value="pay_for_service(url, max_amount)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="n_mcp" target="n_checkpoint">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e7" value="verify merchant allowlist" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;dashed=1;fontSize=10;" edge="1" parent="1" source="n_checkpoint" target="n_registry">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e8" value="verify cap / expiry / balance" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;dashed=1;fontSize=10;" edge="1" parent="1" source="n_checkpoint" target="n_grant">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e9" value="PASS → sign EIP-3009" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="n_checkpoint" target="n_signer">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e10" value="retry with PAYMENT-SIGNATURE" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="n_signer" target="n_merchantapi">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e11" value="402 challenge" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;dashed=1;fontSize=10;" edge="1" parent="1" source="n_merchantapi" target="n_mcp">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e12" value="verify + settle" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="n_merchantapi" target="n_facilitator">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e13" value="transferWithAuthorization (on-chain settle)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="n_facilitator" target="n_xsgd">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e14" value="record payment claim + nonce" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="n_merchantapi" target="n_supabase">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e15" value="registry read/write" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="n_api_routes" target="n_supabase">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e16" value="verify campaign on-chain before write" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;dashed=1;fontSize=10;" edge="1" parent="1" source="n_api_routes" target="n_registry">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e17" value="settlement history" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;fontSize=10;" edge="1" parent="1" source="n_merchant_dash" target="n_supabase">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== LEGEND SWATCHES ===================== -->
+        <mxCell id="lg_title" value="Legend" style="text;html=1;fontSize=13;fontStyle=1;align=left;" vertex="1" parent="1">
+          <mxGeometry x="40" y="780" width="120" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="lg1" value="Client" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="810" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="lg2" value="App logic (MCP)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="170" y="810" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="lg3" value="Checkpoint (security)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="300" y="810" width="140" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="lg4" value="Key storage" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="450" y="810" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="lg5" value="Web app (Vercel)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="580" y="810" width="130" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="lg6" value="On-chain (Avalanche)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="720" y="810" width="150" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="lg7" value="Payment services" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="880" y="810" width="140" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="lg8" value="Data store (Supabase)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#b0e3e6;strokeColor=#0e8088;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1030" y="810" width="150" height="30" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
