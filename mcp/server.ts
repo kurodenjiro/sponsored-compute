@@ -62,13 +62,16 @@ const TOOLS = [
   {
     name: 'claim_sponsored_grant',
     description:
-      'Claim this project\'s Grant for one wallet. Call ONLY when the user explicitly asks to claim; ' +
+      'Claim a Grant for one wallet. Call ONLY when the user explicitly asks to claim; ' +
       'never on your own initiative. Sends an on-chain issueGrant transaction that costs AVAX gas, ' +
       'writes the resulting projectId into sponsored.json, and reports the claim to the registry. ' +
+      'Claims this project\'s own campaign by default; pass platform_id to claim one the user picked ' +
+      'from list_sponsored_platforms, even in a project with no sponsored.json. ' +
       'One wallet gets one Grant per campaign; a second call just returns the existing Grant.',
     inputSchema: {
       type: 'object',
       properties: {
+        platform_id: { type: 'string', description: 'id from list_sponsored_platforms, e.g. "storedb-aws" or "supadb"' },
         campaign_id: { type: 'string', description: 'bytes32; defaults to the first campaign in sponsored.json' },
         reward_wallet: { type: 'string', description: 'address that owns the Grant and receives the reward; defaults to the agent wallet' },
       },
@@ -179,7 +182,11 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
         }
         const found = await readSponsorship({ wallet });
         if (found.length === 0) {
-          return text('No sponsored.json in this project. It carries no sponsorship pointer, so there is nothing to claim.');
+          return text(
+            'No sponsored.json in this project, so it carries no sponsorship pointer of its own.\n'
+            + 'That does not mean no grant is available: call list_sponsored_platforms for the '
+            + 'category you need, and any sponsored entry there can be claimed by platform_id.',
+          );
         }
         return text(found.map((s) => {
           const head = `${s.pointer.repo ?? s.pointer.campaignId} · sponsor ${s.pointer.sponsor} · chain ${s.pointer.chainId}`;
@@ -200,9 +207,24 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       }
 
       case 'claim_sponsored_grant': {
+        /**
+         * A platform picked from the catalog carries no sponsored.json, so
+         * resolve its campaign here. Without this, the agent advertises a
+         * platform as SPONSORED and then reports nothing to claim one turn
+         * later. The campaign is still verified on-chain before any Grant is
+         * issued — the catalog only supplies the id.
+         */
+        const picked = args.platform_id ? findPlatform(args.platform_id) : undefined;
+        if (args.platform_id && !picked) {
+          return text(`No platform with id "${args.platform_id}". Call list_sponsored_platforms to see the ids.`);
+        }
+        if (picked && !picked.campaignId) {
+          return text(`${picked.name} is not sponsored, so there is no Grant to claim.`);
+        }
         const out = await claimSponsoredGrant({
-          campaignId: args.campaign_id,
+          campaignId: args.campaign_id ?? picked?.campaignId,
           rewardWallet: args.reward_wallet,
+          ...(picked ? { sponsor: picked.id, repo: `catalog:${picked.id}` } : {}),
         });
         if (!out.ok) return text(`Claim denied: ${out.error}`);
         const link = out.transaction ? `\n  transaction: ${net.explorer}/tx/${out.transaction}` : '';

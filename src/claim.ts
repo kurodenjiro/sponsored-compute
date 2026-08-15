@@ -96,17 +96,43 @@ export async function claimSponsoredGrant(opts: {
   rewardWallet?: string;
   chainId?: number;
   cwd?: string;
+  /**
+   * Nhãn cho campaign đến từ catalog chứ không từ sponsored.json — dev hỏi
+   * "database nào có tài trợ?" rồi chọn một platform. Chỉ dùng để ghi con trỏ
+   * sau khi claim; campaign vẫn được verify on-chain trước khi phát Grant.
+   */
+  sponsor?: string;
+  repo?: string;
 }): Promise<ClaimResult> {
   const cwd = opts.cwd ?? '.';
   const manifest = readManifest(cwd);
-  if (!manifest || manifest.campaigns.length === 0) {
-    return { ok: false, campaignId: opts.campaignId ?? '', error: 'sponsored.json not found — this project has no sponsorship pointer' };
-  }
 
-  const pointer = opts.campaignId
-    ? manifest.campaigns.find((c) => c.campaignId?.toLowerCase() === opts.campaignId!.toLowerCase())
-    : manifest.campaigns[0];
-  if (!pointer) return { ok: false, campaignId: opts.campaignId!, error: `sponsored.json has no pointer to campaign ${opts.campaignId}` };
+  const fromFile = opts.campaignId
+    ? manifest?.campaigns.find((c) => c.campaignId?.toLowerCase() === opts.campaignId!.toLowerCase())
+    : manifest?.campaigns[0];
+
+  /**
+   * Không có con trỏ trong repo nhưng người dùng đã nêu đích danh campaign thì
+   * vẫn claim được: issueGrant là permissionless, Grant gắn vào ví của chính
+   * người gọi, và campaign được đọc từ chain ngay bên dưới. Bắt buộc phải có
+   * sponsored.json trước là rào cản giả — nó biến "chọn platform trong catalog"
+   * thành ngõ cụt.
+   */
+  const pointer = fromFile ?? (opts.campaignId ? {
+    campaignId: opts.campaignId,
+    sponsor: opts.sponsor ?? 'catalog',
+    chainId: opts.chainId ?? DEFAULT_CHAIN_ID,
+    ...(opts.repo ? { repo: opts.repo } : {}),
+  } satisfies CampaignPointer : undefined);
+
+  if (!pointer) {
+    return {
+      ok: false,
+      campaignId: opts.campaignId ?? '',
+      error: 'this project has no sponsored.json, and no campaign was named — '
+        + 'pick a platform from list_sponsored_platforms, or pass its campaign_id',
+    };
+  }
 
   const campaignId = pointer.campaignId as `0x${string}`;
   const chainId = opts.chainId ?? pointer.chainId ?? DEFAULT_CHAIN_ID;
@@ -124,7 +150,7 @@ export async function claimSponsoredGrant(opts: {
     // sớm ở đây thì dev không mất gas cho một giao dịch chắc chắn hỏng.
     const existing = await source.get(projectId);
     if (existing) {
-      recordProjectId(campaignId, projectId, cwd);
+      recordProjectId(campaignId, projectId, cwd, pointer);
       const registry = await confirmWithRegistry({ campaignId, projectId, chainId, grantId: existing.grantId, owner: rewardWallet, signer: account.address, repo: pointer.repo });
       return { ok: true, campaignId, projectId, grantId: existing.grantId, alreadyClaimed: true, ...registry };
     }
@@ -169,7 +195,7 @@ export async function claimSponsoredGrant(opts: {
       };
     }
 
-    recordProjectId(campaignId, projectId, cwd);
+    recordProjectId(campaignId, projectId, cwd, pointer);
     const registry = await confirmWithRegistry({ campaignId, projectId, chainId, grantId: issued.grantId, owner: rewardWallet, signer: account.address, transaction: hash, repo: pointer.repo });
     return { ok: true, campaignId, projectId, grantId: issued.grantId, transaction: hash, ...registry };
   } catch (e: any) {

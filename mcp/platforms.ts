@@ -76,7 +76,9 @@ export function renderPlatforms(category?: string): string {
 
   const lines = rows.map((p, i) => {
     const tag = p.sponsored ? `[SPONSORED · ${p.grantSgd} ${p.symbol ?? 'XSGD'}]` : '[UNSPONSORED]';
-    return `${i + 1}. ${p.name} ${tag}\n   technical fit ${p.fitScore}/100 · ${p.x402 ? 'x402' : 'no x402'}\n   ${p.note}`;
+    // In kèm id: thiếu nó thì agent không có gì để truyền sang
+    // claim_sponsored_grant, nên "chọn một platform" thành ngõ cụt.
+    return `${i + 1}. ${p.name} ${tag}  (id: ${p.id})\n   technical fit ${p.fitScore}/100 · ${p.x402 ? 'x402' : 'no x402'}\n   ${p.note}`;
   });
 
   return [
@@ -85,6 +87,7 @@ export function renderPlatforms(category?: string): string {
     ...lines,
     '',
     'Which platform would you choose? (You decide, not the agent.)',
+    'To claim a sponsored one, call claim_sponsored_grant with its platform_id — only after the user asks.',
   ].join('\n');
 }
 

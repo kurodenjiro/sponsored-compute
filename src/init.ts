@@ -205,11 +205,28 @@ export function readManifest(cwd = '.'): Manifest | null {
 }
 
 /** Ghi projectId về manifest sau khi Grant đã phát xong on-chain. */
-export function recordProjectId(campaignId: string, projectId: string, cwd = '.'): void {
-  const manifest = readManifest(cwd);
-  if (!manifest) throw new Error('sponsored.json not found; run init in the repository root first');
-  const pointer = manifest.campaigns.find((c) => c.campaignId?.toLowerCase() === campaignId.toLowerCase());
-  if (!pointer) throw new Error(`sponsored.json has no pointer to campaign ${campaignId}`);
+/**
+ * Ghi projectId về manifest sau khi Grant đã phát xong on-chain.
+ *
+ * `seed` cho phép claim một campaign mà repo CHƯA trỏ tới — trường hợp dev hỏi
+ * "database nào có tài trợ?" rồi chọn một platform trong catalog. Trước đây
+ * hàm này ném lỗi khi thiếu file, nên agent quảng cáo là có tài trợ xong lại
+ * báo không claim được. Grant vẫn do contract phát và verify on-chain trước;
+ * sponsored.json chỉ là con trỏ cục bộ, nên tạo mới nó ở đây là an toàn.
+ */
+export function recordProjectId(
+  campaignId: string,
+  projectId: string,
+  cwd = '.',
+  seed?: CampaignPointer,
+): void {
+  const manifest = readManifest(cwd) ?? { version: 2, campaigns: [] };
+  let pointer = manifest.campaigns.find((c) => c.campaignId?.toLowerCase() === campaignId.toLowerCase());
+  if (!pointer) {
+    if (!seed) throw new Error(`sponsored.json has no pointer to campaign ${campaignId}`);
+    pointer = { ...seed };
+    manifest.campaigns.push(pointer);
+  }
   pointer.projectId = projectId;
   writeFileSync(`${cwd}/sponsored.json`, JSON.stringify({ version: 2, campaigns: manifest.campaigns }, null, 2) + '\n');
 }
