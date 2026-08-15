@@ -4,10 +4,13 @@
   "private": true,
   "type": "module",
   "bin": {
-    "sponsored-compute": "./dist/cli.js"
+    "sponsored-compute": "./dist/src/cli.js",
+    "sponsored-compute-mcp": "./dist/mcp/server.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
+    "//prepare": "Cho phép `npx -y --package github:<owner>/x402-hack sponsored-compute` chạy được khi chưa publish lên npm: npm chạy prepare sau khi clone git dep, nên dist/ được build tại chỗ. KHÔNG nuốt lỗi — build hỏng thì bin không tồn tại, phải thấy ngay.",
+    "prepare": "tsc -p tsconfig.build.json",
     "typecheck": "npm run typecheck:core && npm run typecheck:mcp",
     "typecheck:core": "tsc --noEmit",
     "typecheck:mcp": "tsc -p tsconfig.mcp.json",

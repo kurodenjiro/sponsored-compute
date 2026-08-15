@@ -22,7 +22,7 @@ const GM_ABI = parseAbi([
 /** Gas: ghi 3-4 slot + transfer ERC-20. 250k là dư. */
 const GAS = { gas: 250_000n, gasPrice: 25_000_000_000n };
 
-async function agentKey(): Promise<`0x${string}`> {
+export async function agentKey(): Promise<`0x${string}`> {
   if (process.env.AGENT_PRIVATE_KEY) return process.env.AGENT_PRIVATE_KEY as `0x${string}`;
   const { Entry } = await import(/* webpackIgnore: true */ '@napi-rs/keyring');
   const pk = new Entry('sponsored-compute', 'agent-eoa').getPassword();

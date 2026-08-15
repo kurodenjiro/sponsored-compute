@@ -1,4 +1,32 @@
-# Sponsored Compute — Payment Workflow
+# Sponsored Compute — Onboarding & Payment Workflow
+
+## Onboarding: repo → funded campaign → developer Grant
+
+Sponsor chỉ dán URL repo. Mọi id on-chain suy ra từ đó ([src/campaign.ts](../src/campaign.ts)),
+nên không có chỗ nào để gõ sai tên campaign.
+
+```mermaid
+flowchart TD
+    R["Sponsor dán repo URL<br/>/sponsor"] -->|"campaignId = f(repo)"| C["createCampaign + fund XSGD<br/>ví sponsor ký"]
+    C --> REG["POST /api/registry<br/>verify campaign on-chain TRƯỚC khi ghi"]
+    REG -->|"trả 1 dòng lệnh"| CMD["npx @sponsored-compute/cli init --campaign 0x… --repo …"]
+    CMD --> FILES["sponsored.json + .mcp.json<br/>commit vào repo · KHÔNG có bí mật"]
+
+    FILES --> DEV["Dev clone repo → mở Claude Code"]
+    DEV --> ASK["check_project_sponsorship<br/>đọc con trỏ, verify on-chain, không ký gì"]
+    ASK -->|"user đồng ý"| CLAIM["claim_sponsored_grant<br/>projectId = f(campaignId, ví dev)"]
+    CLAIM --> GM["issueGrant() — permissionless<br/>contract là bên enforce"]
+    GM --> BACK["ghi projectId về sponsored.json<br/>+ POST /api/registry/claim (chỉ để tra cứu)"]
+    BACK --> PAY["từ đây trở đi: pay_for_service (bên dưới)"]
+```
+
+- **Claim ≠ pay.** Claim cắt `grantAmount` từ pool thành Grant của một ví (XSGD chưa rời contract).
+  Pay là mỗi lần gọi API, tiêu đúng số của lần đó trong hạn mức Grant.
+- Repo fork lại mang `projectId` đã dùng → `ProjectAlreadyGranted`. Fork không nhân bản được tiền.
+- Registry (`/api/registry`) **không cấp quyền**: nó chỉ chép lại thứ đã có trên chain, và
+  route ghi luôn đọc chain trước. Registry chết thì Grant vẫn hợp lệ.
+
+## Payment
 
 ```mermaid
 flowchart TD

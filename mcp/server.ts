@@ -2,9 +2,14 @@
 /**
  * MCP server — bề mặt DUY NHẤT mà agent (Claude Code / Codex / Cursor) nhìn thấy.
  *
- * 🔴 LUẬT 1 (docs/SPONSORED-COMPUTE.md §6): CHỈ ba tool dưới đây.
- *    KHÔNG expose unwrap / sign / check_policy. Checkpoint chạy BÊN TRONG
- *    pay_for_service — LLM không thấy, không gọi được, không bỏ qua được.
+ * 🔴 LUẬT 1 (docs/SPONSORED-COMPUTE.md §6): KHÔNG expose unwrap / sign /
+ *    check_policy. Checkpoint chạy BÊN TRONG pay_for_service — LLM không thấy,
+ *    không gọi được, không bỏ qua được.
+ *
+ * Hai tool onboarding (check_project_sponsorship / claim_sponsored_grant) nằm
+ * ngoài đường tiêu tiền: chúng phát Grant chứ không chi Grant. Mọi ràng buộc
+ * vẫn do GrantManager giữ, và claim là hành động tường minh của con người
+ * (Luật 2) — agent không được tự claim khi user chưa yêu cầu.
  *
  * 🔴 Không tool nào trả về private key. Không có sign_anything.
  */
@@ -15,6 +20,8 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 
 import { getSigner } from '../src/signer.js';
 import { getGrantSource } from '../src/grant.js';
+import { claimSponsoredGrant, readSponsorship } from '../src/claim.js';
+import { formatAmount } from '../src/campaign.js';
 import { getNetwork, DEFAULT_CHAIN_ID, isMainnet } from '../src/config.js';
 import { payX402, CheckpointDenied } from '../src/pay.js';
 import { renderPlatforms, findPlatform } from './platforms.js';
@@ -35,6 +42,34 @@ const TOOLS = [
     inputSchema: {
       type: 'object',
       properties: { category: { type: 'string', description: 'for example: "database" or "monitoring"' } },
+    },
+  },
+  {
+    name: 'check_project_sponsorship',
+    description:
+      'Answer "does this project have sponsorship?". Reads sponsored.json in the project root and ' +
+      'verifies every campaign on-chain: does it exist, is it funded, has this wallet already claimed. ' +
+      'Read-only: signs nothing and spends no gas.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        reward_wallet: { type: 'string', description: 'address that would own the Grant; defaults to the agent wallet' },
+      },
+    },
+  },
+  {
+    name: 'claim_sponsored_grant',
+    description:
+      'Claim this project\'s Grant for one wallet. Call ONLY when the user explicitly asks to claim; ' +
+      'never on your own initiative. Sends an on-chain issueGrant transaction that costs AVAX gas, ' +
+      'writes the resulting projectId into sponsored.json, and reports the claim to the registry. ' +
+      'One wallet gets one Grant per campaign; a second call just returns the existing Grant.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        campaign_id: { type: 'string', description: 'bytes32; defaults to the first campaign in sponsored.json' },
+        reward_wallet: { type: 'string', description: 'address that owns the Grant and receives the reward; defaults to the agent wallet' },
+      },
     },
   },
   {
@@ -81,10 +116,51 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       case 'list_sponsored_platforms':
         return text(renderPlatforms(args.category));
 
+      case 'check_project_sponsorship': {
+        const wallet = args.reward_wallet ?? (await (await getSigner()).address());
+        const found = await readSponsorship({ wallet });
+        if (found.length === 0) {
+          return text('No sponsored.json in this project. It carries no sponsorship pointer, so there is nothing to claim.');
+        }
+        const fmt = formatAmount;
+        return text(found.map((s) => {
+          const head = `${s.pointer.repo ?? s.pointer.campaignId} · sponsor ${s.pointer.sponsor} · chain ${s.pointer.chainId}`;
+          if (!s.campaign) return `${head}\n  ✗ ${s.reason}`;
+          const available = s.campaign.funded - s.campaign.committed;
+          return [
+            head,
+            `  grant per developer : ${fmt(s.campaign.grantAmount)} XSGD`,
+            `  uncommitted pool    : ${fmt(available)} XSGD  (${available / s.campaign.grantAmount} seats left)`,
+            `  caps                : ${fmt(s.campaign.perTxCap)}/transaction · ${fmt(s.campaign.dailyCap)}/day`,
+            s.grantId ? `  ✓ already claimed by ${wallet} — Grant ${s.grantId}` : `  ${s.claimable ? '→ claimable' : '✗ ' + s.reason} for ${wallet}`,
+          ].join('\n');
+        }).join('\n\n') + '\n\nClaiming is the user\'s decision: ask before calling claim_sponsored_grant.');
+      }
+
+      case 'claim_sponsored_grant': {
+        const out = await claimSponsoredGrant({
+          campaignId: args.campaign_id,
+          rewardWallet: args.reward_wallet,
+        });
+        if (!out.ok) return text(`Claim denied: ${out.error}`);
+        const link = out.transaction ? `\n  transaction: ${net.explorer}/tx/${out.transaction}` : '';
+        return text([
+          out.alreadyClaimed
+            ? `This wallet already holds Grant ${out.grantId} for this campaign. Nothing was issued and no gas was spent.`
+            : `✓ Grant ${out.grantId} issued.${link}`,
+          `  projectId: ${out.projectId}  (written to sponsored.json)`,
+          out.registered
+            ? '  registry: claim recorded'
+            : `  registry: not recorded (${out.registryError}) — the Grant is valid on-chain regardless`,
+          '',
+          'Spend it with pay_for_service; the checkpoint enforces the caps on every call.',
+        ].join('\n'));
+      }
+
       case 'get_grant_status': {
         const g = await getGrantSource().get(args.project_id ?? process.env.PROJECT_ID ?? '0x');
         if (!g) return text('No Grant exists for this project. Ask the user to choose a platform first.');
-        const fmt = (v: bigint) => (Number(v) / 1e6).toFixed(2);
+        const fmt = formatAmount;
         return text(
           [
             `Grant ${g.grantId}  (project ${g.projectId})`,

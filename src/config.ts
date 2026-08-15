@@ -76,6 +76,13 @@ export const NETWORKS: Record<number, NetworkConfig> = {
  */
 export const DEFAULT_CHAIN_ID = Number(process.env.CHAIN_ID ?? 43113);
 
+/**
+ * Registry của Sponsored Compute — nơi sponsor đăng ký repo và nơi dev báo lại
+ * đã claim. Chỉ là sổ tra cứu: nó KHÔNG cấp quyền, không giữ tiền, và mọi thứ
+ * nó nói đều verify lại được on-chain.
+ */
+export const REGISTRY_URL = (process.env.SPONSORED_REGISTRY_URL ?? 'http://localhost:4030').replace(/\/$/, '');
+
 export function getNetwork(chainId = DEFAULT_CHAIN_ID): NetworkConfig {
   const n = NETWORKS[chainId];
   if (!n) throw new Error(`Chưa hỗ trợ chainId ${chainId}. Có: ${Object.keys(NETWORKS).join(', ')}`);

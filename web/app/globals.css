@@ -46,6 +46,7 @@
    keep their editorial layout while sharing the same control language. */
 .sponsor .board .ui-input {
   display: block;
+  box-sizing: border-box; /* thiếu dòng này thì width:100% + padding tràn ra ngoài viền thẻ */
   width: 100%;
   min-height: 46px;
   margin-top: 9px;
@@ -68,7 +69,7 @@
 }
 .sponsor .board .ui-input::placeholder { color: #667260; }
 
-.sponsor .actions .ui-button {
+.sponsor .panel .ui-button {
   min-height: 48px;
   padding: 0 16px;
   border: 1px solid var(--sc-border-strong);
@@ -81,26 +82,33 @@
   text-align: left;
   transition: transform .18s ease, border-color .18s ease, background .18s ease, color .18s ease, box-shadow .18s ease;
 }
-.sponsor .actions .ui-button:hover:not(:disabled) {
+.sponsor .panel .ui-button:hover:not(:disabled) {
   transform: translateY(-2px);
   border-color: var(--sc-accent);
   background: var(--sc-accent);
   color: #10140d;
   box-shadow: 0 8px 20px #c8ff4524;
 }
-.sponsor .actions .ui-button:disabled { opacity: .4; cursor: not-allowed; }
-.sponsor .actions .connect-wallet {
+.sponsor .panel .ui-button:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+/* Nút chính: một hành động mỗi lúc, nên nó được phép to và đặc. */
+.sponsor .panel .ui-button.cta {
+  width: 100%;
+  min-height: 62px;
   border-color: var(--sc-accent);
-  background: #26371c;
-  color: var(--sc-accent);
+  background: var(--sc-accent);
+  color: #10140d;
+  font-size: 14px;
+  font-weight: 800;
   text-align: center;
 }
-.sponsor .actions .registry-state { color: var(--sc-accent); }
+.sponsor .panel .ui-button.cta:hover:not(:disabled) { background: #d8ff72; box-shadow: 0 10px 26px #c8ff4530; }
+
 .sponsor .board .field-help {
   display: block;
-  margin: -10px 0 17px;
+  margin: 8px 0 0;
   color: #819077;
-  font: 10px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 10px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 .session-state {
@@ -124,6 +132,24 @@
   min-height: 0;
   flex-direction: column;
 }
+.site .install {
+  display: grid;
+  grid-template-columns: minmax(260px, .8fr) minmax(420px, 1.2fr);
+  gap: 72px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 34px 145px;
+}
+.site .install h2 { margin: 18px 0; font-size: clamp(46px, 5.5vw, 72px); line-height: .86; letter-spacing: -.075em; }
+.site .install > div > p:not(.eyebrow) { max-width: 340px; color: var(--sc-muted); line-height: 1.6; }
+.site .install-card { border: 1px solid #42503c; background: #11150f; box-shadow: 10px 10px #24321f; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.site .install-card header { display: flex; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #354031; color: #8d9a86; font-size: 10px; letter-spacing: .08em; }
+.site .install-card header span:last-child { color: var(--sc-accent); }
+.site .install-card pre { margin: 0; padding: 22px; overflow-x: auto; color: #dbe6d5; font: 12px/1.65 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.site .install-card button { width: calc(100% - 44px); margin: 0 22px; padding: 14px; border: 1px solid var(--sc-accent); background: var(--sc-accent); color: #10140d; cursor: pointer; font: 800 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.site .install-card button:hover { background: #d8ff72; }
+.site .install-card > small { display: block; padding: 16px 22px 20px; color: #889581; font-size: 10px; line-height: 1.5; }
+.site .install-card code { color: var(--sc-accent); }
 .site #flow .thread {
   display: flex;
   min-height: 0;
@@ -168,4 +194,6 @@
   .thread .composer { bottom: -20px; margin: auto -20px -20px; padding: 12px 20px 20px; }
   .thread .composer textarea { padding-right: 14px; }
   .thread .composer small { position: static; display: block; margin-top: 7px; }
+  .site .install { grid-template-columns: 1fr; gap: 32px; padding: 30px 20px 90px; }
+  .site .install-card { box-shadow: 6px 6px #24321f; }
 }

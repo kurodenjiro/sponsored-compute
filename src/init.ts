@@ -17,17 +17,42 @@ export interface InitOptions {
   sponsor: string;
   chainId?: number;
   cwd?: string;
+  /** URL repo được tài trợ — chỉ để người đọc đối chiếu, không cấp quyền gì. */
+  repo?: string;
 }
 
-type CampaignPointer = { campaignId: string; sponsor: string; chainId: number };
+export type CampaignPointer = {
+  campaignId: string;
+  sponsor: string;
+  chainId: number;
+  repo?: string;
+  /** Ghi vào SAU khi dev claim thành công. Sponsor không bao giờ ghi sẵn. */
+  projectId?: string;
+};
+
+export type Manifest = { version: number; campaigns: CampaignPointer[] };
 
 function serverName(sponsor: string, chainId: number) {
   const slug = sponsor.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'campaign';
   return `sponsored-compute-${slug}-${chainId}`;
 }
 
+/**
+ * Package spec dùng trong lệnh cài và trong .mcp.json.
+ *
+ * Mặc định là tên trên npm. Khi chưa publish (hackathon), trỏ thẳng vào repo:
+ *   SPONSORED_CLI_SPEC=github:owner/x402-hack
+ *   SPONSORED_MCP_SPEC=github:owner/x402-hack
+ * npm chạy `prepare` sau khi clone git dep nên dist/ được build tại chỗ.
+ */
+export const CLI_SPEC = process.env.SPONSORED_CLI_SPEC ?? '@sponsored-compute/cli';
+export const MCP_SPEC = process.env.SPONSORED_MCP_SPEC ?? '@sponsored-compute/mcp';
+
 function serverConfig() {
-  return { command: 'npx', args: ['-y', '@sponsored-compute/mcp'] };
+  // Spec dạng github: cài cả package, nên phải gọi đúng bin thay vì tên package.
+  return MCP_SPEC.startsWith('github:') || MCP_SPEC.includes('/') && !MCP_SPEC.startsWith('@')
+    ? { command: 'npx', args: ['-y', '--package', MCP_SPEC, 'sponsored-compute-mcp'] }
+    : { command: 'npx', args: ['-y', MCP_SPEC] };
 }
 
 export function runInit(o: InitOptions): string[] {
@@ -46,14 +71,18 @@ export function runInit(o: InitOptions): string[] {
     sponsor: campaign.sponsor,
     // Migrate v1 safely: it stored one shared chainId at the document root.
     chainId: campaign.chainId ?? prev?.chainId,
+    ...(campaign.repo ? { repo: campaign.repo } : {}),
+    ...(campaign.projectId ? { projectId: campaign.projectId } : {}),
   }));
 
   const existingCampaign = campaigns.find((c) => c.campaignId?.toLowerCase() === o.campaignId.toLowerCase());
   if (existingCampaign && existingCampaign.chainId !== chainId) {
     throw new Error(`campaign ${o.campaignId} is already configured for chain ${existingCampaign.chainId}`);
   }
-  if (!existingCampaign) {
-    campaigns.push({ campaignId: o.campaignId, sponsor: o.sponsor, chainId });
+  if (existingCampaign) {
+    if (o.repo) existingCampaign.repo = o.repo;
+  } else {
+    campaigns.push({ campaignId: o.campaignId, sponsor: o.sponsor, chainId, ...(o.repo ? { repo: o.repo } : {}) });
   }
 
   writeFileSync(
@@ -81,9 +110,46 @@ export function runInit(o: InitOptions): string[] {
   return written;
 }
 
-/** Lệnh một dòng để sponsor dán vào README hoặc terminal. */
-export function installCommand(campaignId: string, sponsor: string, chainId = DEFAULT_CHAIN_ID) {
+/**
+ * Lệnh một dòng sponsor console trả về sau khi fund — thứ duy nhất sponsor
+ * phải mang vào repo. Nó KHÔNG phải token, không phải giấy phép: chạy nó chỉ
+ * ghi hai file con trỏ, và ai cũng chạy được. Quyền nằm ở Grant on-chain.
+ */
+export function installCommand(o: { campaignId: string; sponsor: string; chainId?: number; repo?: string }) {
+  const chainId = o.chainId ?? DEFAULT_CHAIN_ID;
   getNetwork(chainId);
-  const net = chainId === 43114 ? '' : ` --chain ${chainId}`;
-  return `npx -y @sponsored-compute/cli init --campaign ${campaignId} --sponsor ${sponsor}${net}`;
+  const chain = chainId === 43114 ? '' : ` --chain ${chainId}`;
+  const repo = o.repo ? ` --repo ${o.repo}` : '';
+  const runner = CLI_SPEC.startsWith('github:') ? `npx -y --package ${CLI_SPEC} sponsored-compute` : `npx -y ${CLI_SPEC}`;
+  return `${runner} init --campaign ${o.campaignId} --sponsor ${o.sponsor}${repo}${chain}`;
+}
+
+/** Nội dung .mcp.json mà init sẽ ghi — để sponsor console xem trước, không phải đoán. */
+export function mcpManifest(sponsor: string, chainId = DEFAULT_CHAIN_ID) {
+  return { mcpServers: { [serverName(sponsor, chainId)]: serverConfig() } };
+}
+
+/** Đọc con trỏ trong repo. Dữ liệu này KHÔNG đáng tin — luôn verify on-chain sau đó. */
+export function readManifest(cwd = '.'): Manifest | null {
+  const path = `${cwd}/sponsored.json`;
+  if (!existsSync(path)) return null;
+  const raw = JSON.parse(readFileSync(path, 'utf8'));
+  const campaigns: CampaignPointer[] = (raw?.campaigns ?? []).map((c: any) => ({
+    campaignId: c.campaignId,
+    sponsor: c.sponsor,
+    chainId: c.chainId ?? raw?.chainId ?? DEFAULT_CHAIN_ID,
+    ...(c.repo ? { repo: c.repo } : {}),
+    ...(c.projectId ? { projectId: c.projectId } : {}),
+  }));
+  return { version: raw?.version ?? 1, campaigns };
+}
+
+/** Ghi projectId về manifest sau khi Grant đã phát xong on-chain. */
+export function recordProjectId(campaignId: string, projectId: string, cwd = '.'): void {
+  const manifest = readManifest(cwd);
+  if (!manifest) throw new Error('sponsored.json not found; run init in the repository root first');
+  const pointer = manifest.campaigns.find((c) => c.campaignId?.toLowerCase() === campaignId.toLowerCase());
+  if (!pointer) throw new Error(`sponsored.json has no pointer to campaign ${campaignId}`);
+  pointer.projectId = projectId;
+  writeFileSync(`${cwd}/sponsored.json`, JSON.stringify({ version: 2, campaigns: manifest.campaigns }, null, 2) + '\n');
 }

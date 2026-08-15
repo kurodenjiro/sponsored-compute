@@ -1,3 +1,5 @@
+import { qs, rest, usingSupabase } from './supabase';
+
 export type PaymentEntry = {
   at: number;
   ok: boolean;
@@ -11,27 +13,8 @@ type Claim = { nonce: string; resource: string };
 const CLAIM_TTL_SECONDS = 10 * 60;
 const memoryLog: PaymentEntry[] = [];
 const memoryClaims = new Map<string, number>();
-const supabaseUrl = process.env.SUPABASE_URL?.replace(/\/$/, '');
-const supabaseKey = process.env.SUPABASE_SECRET_KEY;
-const usingSupabase = Boolean(supabaseUrl && supabaseKey);
 
 function key({ nonce, resource }: Claim) { return `${nonce}:${resource}`; }
-function qs(input: Record<string, string>) { return new URLSearchParams(input).toString(); }
-
-async function rest(path: string, init: RequestInit = {}) {
-  if (!supabaseUrl || !supabaseKey) throw new Error('SUPABASE_URL and SUPABASE_SECRET_KEY are required');
-  const response = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
-    ...init,
-    headers: {
-      apikey: supabaseKey,
-      authorization: `Bearer ${supabaseKey}`,
-      'content-type': 'application/json',
-      ...init.headers,
-    },
-  });
-  if (!response.ok) throw new Error(`Supabase REST ${response.status}: ${(await response.text()).slice(0, 280)}`);
-  return response;
-}
 
 /** Atomically reserve an authorization nonce before settlement across instances. */
 export async function claimPayment(claim: Claim): Promise<boolean> {

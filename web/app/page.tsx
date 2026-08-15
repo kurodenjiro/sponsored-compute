@@ -9,6 +9,14 @@ const tools = [
   { name: 'Amazon RDS', category: 'database', fit: 'Good match', funded: '0.80 XSGD', reward: '0.06 XSGD', detail: 'Operate the application data layer in a managed relational database.' },
 ];
 const demoTiming = { start: 1_400, thinking: 1_800, choose: 2_000, build: 3_200 };
+const mcpConfig = `{
+  "mcpServers": {
+    "sponsored-compute": {
+      "command": "npx",
+      "args": ["-y", "@sponsored-compute/mcp"]
+    }
+  }
+}`;
 
 export default function Home() {
   const prompt = 'Design an AWS-hosted AI onboarding flow funded with StraitsX XSGD credits.';
@@ -18,7 +26,15 @@ export default function Home() {
   const [selected, setSelected] = useState<typeof tools[number] | null>(null);
   const [building, setBuilding] = useState(false);
   const [rewarded, setRewarded] = useState(false);
+  const [copied, setCopied] = useState(false);
   const threadRef = useRef<HTMLDivElement>(null);
+  const copyMcpConfig = async () => {
+    try {
+      await navigator.clipboard.writeText(mcpConfig);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1_800);
+    } catch { /* Browsers without clipboard permission leave the config selectable. */ }
+  };
 
   useEffect(() => {
     const nextPrompt = prompt.trim();
@@ -48,7 +64,7 @@ export default function Home() {
 
   return <main className="site">
     <nav><Link href="/" className="brand">sponsored<span>compute</span></Link><div><a href="#flow">How it works</a><Link href="/merchant">Merchant</Link><Link href="/sponsor">Sponsor</Link></div><small><i /> FUJI LIVE</small></nav>
-    <section className="hero"><p className="eyebrow">XSGD · AVALANCHE · x402 · PURPOSE-BOUND GRANTS</p><h1>Fund the build.<br /><em>Not the loophole.</em></h1><p>Developer credits an AI agent can spend only where the sponsor intended — per call, on-chain, with a hard stop.</p><div className="actions"><a href="#flow">Try the agent flow ↓</a><Link href="/sponsor">Sponsor a campaign ↗</Link></div><aside><span>AGENT / MCP</span><b>Grant #1</b><span>AVAILABLE</span><strong>0.14 XSGD</strong><small>allowlist · per-tx cap · daily cap · expiry</small></aside></section>
+    <section className="hero"><p className="eyebrow">XSGD · AVALANCHE · x402 · PURPOSE-BOUND GRANTS</p><h1>Fund the build.<br /><em>Not the loophole.</em></h1><p>Developer credits an AI agent can spend only where the sponsor intended — per call, on-chain, with a hard stop.</p><div className="actions"><a href="#flow">Try the agent flow ↓</a><a href="#install">Install MCP ↓</a><Link href="/sponsor">Sponsor a campaign ↗</Link></div><aside><span>AGENT / MCP</span><b>Grant #1</b><span>AVAILABLE</span><strong>0.14 XSGD</strong><small>allowlist · per-tx cap · daily cap · expiry</small></aside></section>
     <div className="ticker"><span>NO CARD REQUIRED</span><i>◆</i><span>AGENT-SAFE CHECKPOINT</span><i>◆</i><span>XSGD SETTLES ON-CHAIN</span></div>
     <section id="flow" className="flow"><div><p className="eyebrow">THE PRODUCT, IN ONE CONVERSATION</p><h2>Ask normally.<br />Pay deliberately.</h2><p>The user describes the job. The agent finds funded tools, builds with the selected one, and returns the reward only after the work is complete.</p></div><div className="terminal"><header><span>agent session · sponsored-compute</span><span>secure checkpoint</span></header><div className="session-state"><span>LIVE AGENT THREAD</span><b>{rewarded ? 'reward released' : building ? 'build checkpoint' : matches ? 'tools matched' : searching ? 'agent is thinking' : 'ready'}</b></div>
       <div className="conversation thread" ref={threadRef}>
@@ -61,6 +77,7 @@ export default function Home() {
         {rewarded && <div className="reward"><span>✓</span><div><b>Reward released</b><p>{selected?.name} completed the requested build.</p></div><strong>{selected?.reward}<small>earned</small></strong></div>}
       </div><footer>✦ checkpoint runs before signing <span>{rewarded ? '✓ settlement recorded' : 'funding rules stay fixed'}</span></footer>
     </div></section>
+    <section id="install" className="install"><div><p className="eyebrow">CONNECT YOUR AGENT</p><h2>Install the<br />MCP server.</h2><p>Add Sponsored Compute to Claude Code or any MCP client. Your agent can discover sponsored platforms, inspect Grant status, and pay only through the checkpoint.</p></div><div className="install-card"><header><span>MCP CONFIG</span><span>stdio</span></header><pre>{mcpConfig}</pre><button onClick={copyMcpConfig}>{copied ? 'Copied to clipboard ✓' : 'Copy MCP config'}</button><small>Save as <code>.mcp.json</code> in your project, then restart your MCP client.</small></div></section>
     <section className="boundaries"><p className="eyebrow">WHY IT DOESN’T LEAK</p><h2>A credit should act<br />like a commitment.</h2><div>{[['01', 'The merchant is fixed.', 'Owner-approved registry allowlist.'], ['02', 'The amount is fixed.', 'Caller, daily, vested and per-tx caps.'], ['03', 'The end is fixed.', 'Expiry, revoke and exhausted credit stop it.']].map(x => <article key={x[0]}><b>{x[0]}</b><h3>{x[1]}</h3><p>{x[2]}</p></article>)}</div></section>
     <section className="closing"><div><p className="eyebrow">ONE DEPLOYMENT · THREE SURFACES</p><h2>Spend XSGD<br /><em>with intent.</em></h2></div><div><Link href="/sponsor">Open sponsor console ↗</Link><Link href="/merchant">Open merchant dashboard ↗</Link></div></section>
     <style jsx>{`
