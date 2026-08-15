@@ -5,8 +5,9 @@
  *   - asset tuỳ ý (XSGD) với EIP-712 domain riêng
  *   - ATOMIC CLAIM chống replay (x402 Attack II)
  *
- * Settle: self-relay là mặc định hiện tại. 0xGasless có thể bật sau khi
- * merchant payTo được whitelist; nếu không facilitator sẽ từ chối recipient.
+ * Settle: self-relay là mặc định đã được E2E với merchant payTo tùy chỉnh.
+ * 0xGasless chỉ là lựa chọn thử nghiệm; public facilitator hiện từ chối
+ * recipient SupaDB và không có quy trình whitelist công khai trong docs.
  */
 
 import { getNetwork } from '../../src/config.js';

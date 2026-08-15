@@ -96,5 +96,5 @@ Gọi endpoint độc qua `pay_for_service` phải bị checkpoint từ chối t
 - AVAX Fuji cho signer (unwrap) và self-relayer (settlement).
 - XSGD Fuji cho sponsor nạp campaign.
 - Private key **chỉ** cho self-relayer trong `platform-demo/.env.local`; không commit file này.
-- 0xGasless có thể thay relayer bằng `X402_SETTLEMENT_PROVIDER=0xgasless` sau khi họ whitelist merchant `payTo` cho XSGD. Hiện Fuji từ chối SupaDB demo recipient chưa whitelist.
+- Self-relay là provider mặc định đã E2E với merchant `payTo` hiện tại. `0xgasless` chỉ nên bật sau khi verify thành công với đúng XSGD/Fuji/recipient; public facilitator hiện từ chối SupaDB demo recipient và docs không công bố quy trình whitelist.
 - Ví owner của `MerchantRegistry` để duyệt merchant mới.
