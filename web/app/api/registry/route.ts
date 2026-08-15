@@ -14,7 +14,7 @@ import { NextResponse } from 'next/server';
 import { DEFAULT_CHAIN_ID, getNetwork } from '../../../../src/config.js';
 import { campaignIdOf, normalizeSponsor, parseRepoUrl, sponsorSlugOf } from '../../../../src/campaign.js';
 import { getCampaign } from '../../../../src/grant.js';
-import { installCommand, mcpManifest } from '../../../../src/init.js';
+import { codexManifest, installCommand, mcpManifest } from '../../../../src/init.js';
 import { listRepos, registryStoreMode, saveRepo, type SponsoredRepo } from '../../../lib/registry-store';
 
 export const dynamic = 'force-dynamic';
@@ -82,6 +82,8 @@ export async function POST(request: Request) {
       manifest: { version: 2, campaigns: [{ campaignId, sponsor, chainId, repo: repo.url }] },
       // .mcp.json: thứ làm "clone xong là chạy" — Claude Code tự nạp server này.
       mcp: mcpManifest(sponsor, chainId),
+      // .codex/config.toml: cùng vai trò, dành cho Codex CLI.
+      codex: codexManifest(sponsor, chainId),
       seats: Number((campaign.funded - campaign.committed) / campaign.grantAmount),
       storage: registryStoreMode,
     });

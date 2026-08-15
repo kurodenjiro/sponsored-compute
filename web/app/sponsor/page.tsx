@@ -78,7 +78,7 @@ export default function SponsorPage() {
   const [chain, setChain] = useState<Chain>(emptyChain);
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<{ install: string; manifest: string; mcp: string; seats: number; repo: string } | null>(null);
+  const [result, setResult] = useState<{ install: string; manifest: string; mcp: string; codex: string; seats: number; repo: string } | null>(null);
   const [copied, setCopied] = useState('');
 
   // Gõ URL không nên bắn RPC mỗi phím.
@@ -248,6 +248,7 @@ export default function SponsorPage() {
         install: data.install,
         manifest: JSON.stringify(data.manifest, null, 2),
         mcp: JSON.stringify(data.mcp, null, 2),
+        codex: data.codex,
         seats: data.seats,
         repo: repo.slug,
       });
@@ -381,16 +382,18 @@ export default function SponsorPage() {
       <div>
         <p>WHAT GOES IN THE REPO</p>
         <h2>One line.<br />No secrets.</h2>
-        <p className="muted">Run it in the root of <code>{result.repo}</code>, then commit <code>sponsored.json</code> and <code>.mcp.json</code>. It only writes pointers: no key, no wallet address, no contract address. <b>{result.seats}</b> seat{result.seats === 1 ? '' : 's'} are funded right now.</p>
+        <p className="muted">Run it in the root of <code>{result.repo}</code>, then commit <code>sponsored.json</code>, <code>.mcp.json</code>, and <code>.codex/config.toml</code>. It only writes pointers: no key, no wallet address, no contract address. <b>{result.seats}</b> seat{result.seats === 1 ? '' : 's'} are funded right now.</p>
       </div>
       <div className="handoff-card">
         <header><span>1 · RUN IN THE REPO</span><button onClick={() => copy('install', result.install)}>{copied === 'install' ? 'Copied ✓' : 'Copy'}</button></header>
         <pre>{result.install}</pre>
         <header><span>2 · IT WRITES sponsored.json</span><button onClick={() => copy('manifest', result.manifest)}>{copied === 'manifest' ? 'Copied ✓' : 'Copy'}</button></header>
         <pre>{result.manifest}</pre>
-        <header><span>3 · AND .mcp.json — CLONE AND GO</span><button onClick={() => copy('mcp', result.mcp)}>{copied === 'mcp' ? 'Copied ✓' : 'Copy'}</button></header>
+        <header><span>3 · .mcp.json — CLAUDE CODE PICKS THIS UP</span><button onClick={() => copy('mcp', result.mcp)}>{copied === 'mcp' ? 'Copied ✓' : 'Copy'}</button></header>
         <pre>{result.mcp}</pre>
-        <footer>Developer side: clone the repo, open Claude Code, and ask "does this project have sponsorship?". The MCP verifies the campaign on-chain, then issues that developer their own Grant.</footer>
+        <header><span>4 · .codex/config.toml — CODEX PICKS THIS UP</span><button onClick={() => copy('codex', result.codex)}>{copied === 'codex' ? 'Copied ✓' : 'Copy'}</button></header>
+        <pre>{result.codex}</pre>
+        <footer>Developer side: clone the repo, open Claude Code or Codex CLI, and ask "does this project have sponsorship?". The MCP verifies the campaign on-chain, then issues that developer their own Grant.</footer>
       </div>
     </section>}
 

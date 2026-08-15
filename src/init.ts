@@ -1,15 +1,16 @@
 /**
  * `sponsored-compute init` — lệnh mà sponsor copy vào terminal (hoặc dán vào
- * README của repo mẫu). Ghi hai file vào dự án hiện tại:
+ * README của repo mẫu). Ghi ba file vào dự án hiện tại:
  *
- *   sponsored.json   con trỏ tới campaign  (KHÔNG phải giấy phép — xem §7.2)
- *   .mcp.json        khai báo MCP server, Claude Code tự nạp khi mở project
+ *   sponsored.json      con trỏ tới campaign  (KHÔNG phải giấy phép — xem §7.2)
+ *   .mcp.json           Claude Code tự nạp khi mở project
+ *   .codex/config.toml  Codex CLI tự nạp cho project đã trust (project-scoped MCP)
  *
  * KHÔNG ghi bí mật, KHÔNG ghi địa chỉ ví, KHÔNG ghi địa chỉ contract.
  * Địa chỉ resolve theo chainId lúc chạy từ src/config.ts.
  */
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { DEFAULT_CHAIN_ID, getNetwork } from './config.js';
 
 export interface InitOptions {
@@ -53,6 +54,23 @@ function serverConfig() {
   return MCP_SPEC.startsWith('github:') || MCP_SPEC.includes('/') && !MCP_SPEC.startsWith('@')
     ? { command: 'npx', args: ['-y', '--package', MCP_SPEC, 'sponsored-compute-mcp'] }
     : { command: 'npx', args: ['-y', MCP_SPEC] };
+}
+
+/**
+ * Codex CLI đọc MCP server từ TOML — `[mcp_servers.<name>]` — chứ không phải
+ * .mcp.json. Ghi vào `.codex/config.toml` TRONG REPO (project-scoped, chỉ chạy
+ * cho project đã trust — xem developers.openai.com/codex/mcp), KHÔNG BAO GIỜ
+ * đụng vào `~/.codex/config.toml` của máy dev: đó là config toàn máy, không
+ * phải thứ một `init` chạy trong một thư mục dự án được phép sửa.
+ */
+function codexBlock(name: string, cfg: { command: string; args: string[] }): string {
+  const args = cfg.args.map((a) => JSON.stringify(a)).join(', ');
+  return `[mcp_servers.${name}]\ncommand = ${JSON.stringify(cfg.command)}\nargs = [${args}]`;
+}
+
+/** Nội dung `.codex/config.toml` mà init sẽ ghi — để sponsor console xem trước. */
+export function codexManifest(sponsor: string, chainId = DEFAULT_CHAIN_ID): string {
+  return codexBlock(serverName(sponsor, chainId), serverConfig()) + '\n';
 }
 
 export function runInit(o: InitOptions): string[] {
@@ -106,6 +124,26 @@ export function runInit(o: InitOptions): string[] {
   };
   writeFileSync(mcpPath, JSON.stringify(merged, null, 2) + '\n');
   written.push('.mcp.json');
+
+  // ---- .codex/config.toml ----
+  // Không có parser TOML ở đây, nên chỉ tự cho phép đúng MỘT thứ: kiểm tra
+  // khối của CHÍNH MÌNH (byte-for-byte, vì mình luôn sinh ra cùng một chuỗi)
+  // đã có sẵn hay chưa. Header trùng mà nội dung khác → dừng, không đoán ý
+  // người đã sửa tay — giống hệt luật của .mcp.json ở trên.
+  const codexDir = `${o.cwd ?? '.'}/.codex`;
+  const codexPath = `${codexDir}/config.toml`;
+  const codexHeader = `[mcp_servers.${name}]`;
+  const codexBlockText = codexBlock(name, nextServer);
+  const existingToml = existsSync(codexPath) ? readFileSync(codexPath, 'utf8') : '';
+  if (!existingToml.includes(codexBlockText)) {
+    if (existingToml.includes(`${codexHeader}\n`) || existingToml.trimEnd().endsWith(codexHeader)) {
+      throw new Error(`Codex MCP server "${name}" already exists in .codex/config.toml with a different configuration; resolve it manually instead of overwriting it.`);
+    }
+    if (!existsSync(codexDir)) mkdirSync(codexDir, { recursive: true });
+    const sep = existingToml.length ? (existingToml.endsWith('\n\n') ? '' : existingToml.endsWith('\n') ? '\n' : '\n\n') : '';
+    writeFileSync(codexPath, `${existingToml}${sep}${codexBlockText}\n`);
+  }
+  written.push('.codex/config.toml');
 
   return written;
 }
