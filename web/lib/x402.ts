@@ -13,6 +13,7 @@
 import { getNetwork } from '../../src/config.js';
 import { settleWithFacilitator } from '../../src/pay.js';
 import { settleDirect, validateAuthorizationBinding } from '../../src/relayer.js';
+import { claimPayment, paymentHistory, recordPayment, releaseClaim, type PaymentEntry } from './payment-store';
 
 export const EVIL = process.env.EVIL === '1';
 
@@ -28,36 +29,14 @@ export const MERCHANT_NAME = EVIL ? 'FreeDB (merchant độc)' : process.env.MER
 const SETTLEMENT_PROVIDER = process.env.X402_SETTLEMENT_PROVIDER ?? 'self-relay';
 
 /** Nhật ký thanh toán — hiện lên UI cho demo. */
-export type Entry = {
-  at: number;
-  ok: boolean;
-  payer?: string;
-  amount: string;
-  tx?: string;
-  error?: string;
-};
-const log: Entry[] = [];
-export function history() {
-  return log.slice(-20).reverse();
-}
+export type Entry = PaymentEntry;
+export const history = paymentHistory;
 
 /**
  * ATOMIC CLAIM — chống replay (1 chữ ký → n lần được phục vụ).
  * Bản demo dùng Map; production dùng DynamoDB conditional write
  * `attribute_not_exists(pay_id)` (docs/SPONSORED-COMPUTE.md §8).
  */
-const claimed = new Map<string, number>();
-const TTL_MS = 10 * 60 * 1000;
-
-function claim(payId: string, resource: string): boolean {
-  const key = `${payId}:${resource}`;
-  const now = Date.now();
-  for (const [k, t] of claimed) if (now - t > TTL_MS) claimed.delete(k);
-  if (claimed.has(key)) return false;
-  claimed.set(key, now);
-  return true;
-}
-
 export function challenge(resource: string) {
   return {
     x402Version: 1,
@@ -128,8 +107,9 @@ export async function handlePayment(req: Request, resource: string): Promise<Han
 
   // ⚡ CHẶN 4 — atomic claim SAU KHI bind authorization vào challenge, TRƯỚC khi phục vụ
   const payId = auth.nonce ?? 'unknown';
-  if (!claim(payId, resource)) {
-    log.push({ at: Date.now(), ok: false, amount: PRICE, error: 'REPLAY_REJECTED' });
+  const paymentClaim = { nonce: payId, resource };
+  if (!(await claimPayment(paymentClaim))) {
+    await recordPayment({ at: Date.now(), ok: false, amount: PRICE, error: 'REPLAY_REJECTED' }, paymentClaim);
     return {
       kind: '409',
       body: { error: 'REPLAY_REJECTED', detail: `nonce ${payId} đã dùng cho tài nguyên này` },
@@ -160,16 +140,16 @@ export async function handlePayment(req: Request, resource: string): Promise<Han
   }
 
   if (status !== 200 || !out?.success || !out.transaction || !out.payer) {
-    claimed.delete(`${payId}:${resource}`); // settle hỏng → trả lại claim
+    await releaseClaim(paymentClaim); // settle hỏng → trả lại claim
     const detail = out?.errorReason ?? out?.invalidReason ?? out?.error ?? JSON.stringify(raw);
-    log.push({ at: Date.now(), ok: false, amount: PRICE, payer: auth.from, error: detail });
+    await recordPayment({ at: Date.now(), ok: false, amount: PRICE, payer: auth.from, error: detail }, paymentClaim);
     return { kind: '402-failed', body: { error: 'SETTLE_FAILED', detail } };
   }
 
-  log.push({
+  await recordPayment({
     at: Date.now(), ok: true, amount: PRICE, payer: out.payer,
     tx: `${net.explorer}/tx/${out.transaction}`,
-  });
+  }, paymentClaim);
 
   return {
     kind: '200',

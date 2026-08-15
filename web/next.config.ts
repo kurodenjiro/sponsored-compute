@@ -10,7 +10,7 @@ const config: NextConfig = {
   // The repository root owns shared payment and contract code.
   outputFileTracingRoot: path.join(process.cwd(), '..'),
   // @napi-rs/keyring là native .node — webpack không bundle được, phải để Node require thẳng
-  serverExternalPackages: ['@napi-rs/keyring'],
+  serverExternalPackages: ['@napi-rs/keyring', 'pg'],
   webpack: (cfg) => {
     cfg.resolve.extensionAlias = {
       ...(cfg.resolve.extensionAlias ?? {}),
