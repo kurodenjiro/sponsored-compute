@@ -136,7 +136,7 @@ export default function SponsorPage() {
       });
     } catch {
       setChain((c) => ({ ...c, loading: false }));
-      setStatus('Không đọc được state trên Fuji. Kiểm tra kết nối RPC Avalanche.');
+      setStatus('Could not read Fuji state. Check the Avalanche RPC connection.');
     }
   }, [repo, merchantId, campaignId]);
 
@@ -151,41 +151,41 @@ export default function SponsorPage() {
 
   const connectWallet = async () => {
     const ethereum = (window as typeof window & { ethereum?: any }).ethereum;
-    if (!ethereum) return setStatus('Không thấy ví Core hoặc EVM nào. Cài extension Core rồi thử lại.');
+    if (!ethereum) return setStatus('No Core or other EVM wallet detected. Install the Core extension and try again.');
     setBusy(true);
     try {
       const client = createWalletClient({ chain: avalancheFuji, transport: custom(ethereum) });
       const [account] = await client.requestAddresses();
-      if (!account) throw new Error('Chưa chọn tài khoản ví.');
+      if (!account) throw new Error('No wallet account selected.');
       await client.switchChain({ id: avalancheFuji.id });
       setWallet(account);
       void readBalance(account);
-      setStatus(`Ví ${short(account)} đã kết nối — nó là payTo của merchant và là sponsor của campaign.`);
+      setStatus(`Wallet ${short(account)} connected — it is the merchant payTo and the campaign sponsor.`);
     } catch (error: any) {
-      setStatus(`Kết nối ví thất bại: ${error?.shortMessage ?? error?.message ?? 'người dùng từ chối'}`);
+      setStatus(`Wallet connection failed: ${error?.shortMessage ?? error?.message ?? 'request rejected'}`);
     } finally { setBusy(false); }
   };
 
   const run = async (label: string, action: (account: `0x${string}`, client: ReturnType<typeof createWalletClient>) => Promise<`0x${string}` | void>) => {
     const ethereum = (window as typeof window & { ethereum?: unknown }).ethereum;
-    if (!ethereum) return setStatus('Không thấy ví injected. Mở khoá Core, MetaMask hoặc ví EVM khác.');
+    if (!ethereum) return setStatus('No injected wallet found. Unlock Core, MetaMask, or another EVM wallet.');
     setBusy(true);
     try {
       const client = createWalletClient({ chain: avalancheFuji, transport: custom(ethereum as any) });
       const [account] = await client.requestAddresses();
-      if (!account) throw new Error('Chưa chọn tài khoản ví.');
+      if (!account) throw new Error('No wallet account selected.');
       setWallet(account);
-      setStatus(`${label}: đang chờ chữ ký…`);
+      setStatus(`${label}: waiting for signature…`);
       const hash = await action(account, client);
       if (hash) {
-        setStatus(`${label}: đã gửi ${hash.slice(0, 10)}… — chờ xác nhận.`);
+        setStatus(`${label}: submitted ${hash.slice(0, 10)}… — waiting for confirmation.`);
         await publicClient.waitForTransactionReceipt({ hash });
-        setStatus(`${label}: xác nhận trên Avalanche Fuji.`);
+        setStatus(`${label}: confirmed on Avalanche Fuji.`);
       }
       await Promise.all([readChain(), readBalance(account)]);
       return true;
     } catch (error: any) {
-      setStatus(`${label}: ${error?.shortMessage ?? error?.message ?? 'giao dịch thất bại'}`);
+      setStatus(`${label}: ${error?.shortMessage ?? error?.message ?? 'transaction failed'}`);
       return false;
     } finally { setBusy(false); }
   };
@@ -197,7 +197,7 @@ export default function SponsorPage() {
    */
   const ensureMerchant = async (payTo: string) => {
     if (merchantApproved) return true;
-    setStatus('Đang duyệt merchant tự động…');
+    setStatus('Auto-approving merchant…');
     try {
       const response = await fetch('/api/registry/merchant', {
         method: 'POST', headers: { 'content-type': 'application/json' },
@@ -208,12 +208,12 @@ export default function SponsorPage() {
       setChain((c) => ({ ...c, merchantPayTo: data.payTo }));
       return true;
     } catch (error: any) {
-      setStatus(`Duyệt merchant: ${error?.message ?? 'thất bại'}`);
+      setStatus(`Merchant approval: ${error?.message ?? 'failed'}`);
       return false;
     }
   };
 
-  const createCampaign = () => run('Tạo campaign', async (account, client) => client.writeContract({
+  const createCampaign = () => run('Create campaign', async (account, client) => client.writeContract({
     account, chain: avalancheFuji, address: GRANT_MANAGER, abi: grantAbi, functionName: 'createCampaign',
     args: [campaignId, {
       sponsor: account, merchantId, funded: 0n, committed: 0n,
@@ -223,12 +223,12 @@ export default function SponsorPage() {
     }],
   }));
 
-  const fundCampaign = () => run(`Nạp ${sgd(poolAtomic)}`, async (account, client) => {
+  const fundCampaign = () => run(`Fund ${sgd(poolAtomic)}`, async (account, client) => {
     const xsgd = await publicClient.readContract({ address: GRANT_MANAGER, abi: grantAbi, functionName: 'xsgd' });
-    setStatus('Bước 1/2 — duyệt XSGD cho GrantManager…');
+    setStatus('Step 1/2 — approving XSGD for GrantManager…');
     const approval = await client.writeContract({ account, chain: avalancheFuji, address: xsgd, abi: erc20Abi, functionName: 'approve', args: [GRANT_MANAGER, poolAtomic] });
     await publicClient.waitForTransactionReceipt({ hash: approval });
-    setStatus('Bước 2/2 — nạp vào campaign…');
+    setStatus('Step 2/2 — funding the campaign…');
     return client.writeContract({ account, chain: avalancheFuji, address: GRANT_MANAGER, abi: grantAbi, functionName: 'fund', args: [campaignId, poolAtomic] });
   });
 
@@ -236,7 +236,7 @@ export default function SponsorPage() {
   const registerRepo = useCallback(async () => {
     if (!repo) return;
     setBusy(true);
-    setStatus('Đang đăng ký repo với Sponsored Compute…');
+    setStatus('Registering the repository with Sponsored Compute…');
     try {
       const response = await fetch('/api/registry', {
         method: 'POST', headers: { 'content-type': 'application/json' },
@@ -251,9 +251,9 @@ export default function SponsorPage() {
         seats: data.seats,
         repo: repo.slug,
       });
-      setStatus(`${repo.slug} đã sẵn sàng. Dán lệnh bên dưới vào repo — dev chỉ cần từng đó.`);
+      setStatus(`${repo.slug} is live. Paste the command below into the repository — that is all a developer needs.`);
     } catch (error: any) {
-      setStatus(`Đăng ký repo: ${error?.message ?? 'thất bại'}`);
+      setStatus(`Repository registration: ${error?.message ?? 'failed'}`);
     } finally { setBusy(false); }
   }, [repo, sponsor, campaignId]);
 
@@ -269,17 +269,17 @@ export default function SponsorPage() {
   const fundThenRegister = async () => { if (await fundCampaign()) await registerRepo(); };
 
   const primary: Record<typeof stage, { label: string; action: () => void; hint: string }> = {
-    repo: { label: 'Nhập repo hợp lệ và số tiền', action: () => {}, hint: parsed.error || 'Số XSGD mỗi developer phải lớn hơn 0.' },
-    wallet: { label: 'Kết nối ví để tiếp tục', action: connectWallet, hint: 'Ví này trả tiền, nhận payTo, và sở hữu campaign.' },
-    create: { label: `Tạo campaign cho ${repo?.slug ?? ''}`, action: approveThenCreate, hint: `Cỡ Grant ${sgd(grantAtomic)} khoá vĩnh viễn lúc tạo — sau này chỉ nạp thêm được.${merchantApproved ? '' : ' Merchant được duyệt tự động, bạn không phải ký thêm.'}` },
-    fund: { label: `Duyệt & nạp ${sgd(poolAtomic)}`, action: fundThenRegister, hint: `${seatCount} suất × ${sgd(grantAtomic)}. Hai chữ ký: approve rồi fund. Xong sẽ tự lấy chuỗi cài.` },
-    ready: { label: 'Lấy chuỗi cài vào repo', action: registerRepo, hint: 'Không ký gì — chỉ đọc lại campaign trên chain rồi sinh lệnh.' },
+    repo: { label: 'Enter a valid repo and amount', action: () => {}, hint: parsed.error || 'XSGD per developer must be greater than 0.' },
+    wallet: { label: 'Connect a wallet to continue', action: connectWallet, hint: 'This wallet pays, receives payTo, and owns the campaign.' },
+    create: { label: `Create campaign for ${repo?.slug ?? ''}`, action: approveThenCreate, hint: `Grant size ${sgd(grantAtomic)} is locked in permanently on creation — you can only fund more afterward.${merchantApproved ? '' : ' The merchant is auto-approved; no extra signature needed.'}` },
+    fund: { label: `Approve & fund ${sgd(poolAtomic)}`, action: fundThenRegister, hint: `${seatCount} seat${seatCount === 1 ? '' : 's'} × ${sgd(grantAtomic)}. Two signatures: approve, then fund. The install command follows automatically.` },
+    ready: { label: 'Get the repo install command', action: registerRepo, hint: 'Signs nothing — just re-reads the campaign on-chain and generates the command.' },
   };
   const steps = [
-    { key: 'wallet', n: '01', label: 'Ví', done: Boolean(wallet) },
+    { key: 'wallet', n: '01', label: 'Wallet', done: Boolean(wallet) },
     { key: 'create', n: '02', label: 'Campaign', done: chain.exists },
-    { key: 'fund', n: '03', label: 'Nạp XSGD', done: chain.exists && seatsLeft >= 1 },
-    { key: 'ready', n: '04', label: 'Chuỗi cài', done: Boolean(result) },
+    { key: 'fund', n: '03', label: 'Fund XSGD', done: chain.exists && seatsLeft >= 1 },
+    { key: 'ready', n: '04', label: 'Install command', done: Boolean(result) },
   ];
 
   const copy = async (label: string, value: string) => {
@@ -287,79 +287,79 @@ export default function SponsorPage() {
       await navigator.clipboard.writeText(value);
       setCopied(label);
       window.setTimeout(() => setCopied(''), 1_800);
-    } catch { /* Không có quyền clipboard: text vẫn bôi đen copy tay được. */ }
+    } catch { /* No clipboard permission: the text stays selectable for manual copy. */ }
   };
 
   return <main className="sponsor">
     <nav><Link href="/" className="brand">sponsored<span>compute</span></Link><Link href="/merchant">Merchant dashboard ↗</Link></nav>
     <header>
-      <p>SPONSOR CONSOLE · MỘT NÚT MỖI LÚC</p>
+      <p>SPONSOR CONSOLE · ONE BUTTON AT A TIME</p>
       <h1>Fund a repo.<br /><em>Not a wallet.</em></h1>
-      <span>DÁN REPO → NẠP XSGD → NHẬN MỘT DÒNG LỆNH ĐỂ ĐƯA VÀO REPO</span>
+      <span>PASTE A REPO → FUND XSGD → GET ONE LINE TO DROP IN THE REPO</span>
     </header>
 
     <section className="board">
       <div className="form">
         <p>CAMPAIGN</p>
-        <label htmlFor="repo">Repo GitHub</label>
+        <label htmlFor="repo">GitHub repo</label>
         <Input id="repo" value={repoUrl} placeholder="https://github.com/owner/repo" onChange={(e) => setRepoUrl(e.target.value)} />
         <small className={parsed.error ? 'field-error' : 'field-help'}>
-          {parsed.error || <>sponsor <b>{sponsor}</b> · campaign suy ra từ <b>{repo?.host}/{repo?.slug}</b></>}
+          {parsed.error || <>sponsor <b>{sponsor}</b> · campaign derived from <b>{repo?.host}/{repo?.slug}</b></>}
         </small>
 
-        <label htmlFor="grant">XSGD mỗi developer{chain.exists && <em className="locked">đã khoá on-chain</em>}</label>
+        <label htmlFor="grant">XSGD per developer{chain.exists && <em className="locked">locked on-chain</em>}</label>
         <Input id="grant" value={chain.exists ? amount(chain.grantAmount) : grant} disabled={chain.exists} onChange={(e) => setGrant(e.target.value)} />
         {!chain.exists && <div className="chips">{GRANT_PRESETS.map((v) => <button key={v} className={grant === v ? 'on' : ''} onClick={() => setGrant(v)}>{v}</button>)}</div>}
         <small className="field-help">
           {chain.exists
-            ? 'Campaign đã tồn tại nên cỡ Grant không sửa được nữa — tạo repo khác nếu muốn mức khác.'
-            : 'Mỗi dev claim được đúng ngần này, nhả dần theo 2 tranche.'}
+            ? 'The campaign already exists, so the Grant size can no longer change — create a different repo for a different amount.'
+            : 'Each developer claims exactly this much, released across 2 tranches.'}
         </small>
 
-        <label htmlFor="seats">Số suất nạp thêm</label>
+        <label htmlFor="seats">Seats to fund</label>
         <Input id="seats" value={seats} onChange={(e) => setSeats(e.target.value)} />
         <div className="chips">{SEAT_PRESETS.map((v) => <button key={v} className={seats === v ? 'on' : ''} onClick={() => setSeats(v)}>{v}</button>)}</div>
-        <small className="field-help">Sắp nạp: <b>{sgd(poolAtomic)}</b> = {sgd(grantAtomic)} × {seatCount}</small>
+        <small className="field-help">About to fund: <b>{sgd(poolAtomic)}</b> = {sgd(grantAtomic)} × {seatCount}</small>
 
         <div className="derived">
-          <span>trần mỗi giao dịch</span><b>{sgd(caps.perTxCap)}</b>
-          <span>trần mỗi ngày</span><b>{sgd(caps.dailyCap)}</b>
-          <span>hiệu lực Grant</span><b>30 ngày</b>
-          <span>merchant payTo</span><b>{merchantApproved ? short(chain.merchantPayTo) : wallet ? short(wallet) : 'ví sẽ kết nối'}</b>
+          <span>per-transaction cap</span><b>{sgd(caps.perTxCap)}</b>
+          <span>daily cap</span><b>{sgd(caps.dailyCap)}</b>
+          <span>Grant validity</span><b>30 days</b>
+          <span>merchant payTo</span><b>{merchantApproved ? short(chain.merchantPayTo) : wallet ? short(wallet) : 'wallet will connect'}</b>
         </div>
-        <small className="field-help">Ví của developer và của agent không nhập ở đây. Dev tự gắn ví của họ lúc claim.</small>
+        <small className="field-help">Developer and agent wallets are not entered here. A developer binds their own wallet when they claim.</small>
       </div>
 
       <div className="panel">
         <div className="rail">{steps.map((s) => <div key={s.key} className={`rail-step ${s.done ? 'done' : stage === s.key ? 'now' : ''}`}><b>{s.done ? '✓' : s.n}</b><span>{s.label}</span></div>)}</div>
 
         <div className="live">
-          <span>trạng thái repo</span>
-          <b>{chain.loading ? 'đang đọc Fuji…' : !repo ? '—' : chain.paused ? 'campaign đang pause' : chain.exists ? `${seatsLeft} suất còn trống · ${sgd(chain.available)}` : 'chưa có campaign'}</b>
-          <span>ví</span>
-          <b>{wallet ? `${short(wallet)}${balance === null ? '' : ` · ${sgd(balance)}`}` : 'chưa kết nối'}</b>
+          <span>repo status</span>
+          <b>{chain.loading ? 'reading Fuji…' : !repo ? '—' : chain.paused ? 'campaign is paused' : chain.exists ? `${seatsLeft} seat${seatsLeft === 1 ? '' : 's'} left · ${sgd(chain.available)}` : 'no campaign yet'}</b>
+          <span>wallet</span>
+          <b>{wallet ? `${short(wallet)}${balance === null ? '' : ` · ${sgd(balance)}`}` : 'not connected'}</b>
           <span>merchant</span>
-          <b>{chain.loading ? '…' : merchantApproved ? `đã duyệt · ${short(chain.merchantPayTo)}` : 'duyệt tự động khi tạo campaign'}</b>
+          <b>{chain.loading ? '…' : merchantApproved ? `approved · ${short(chain.merchantPayTo)}` : 'auto-approved on campaign creation'}</b>
         </div>
 
-        {/* Kết quả phải nằm NGAY chỗ vừa bấm — không bắt người dùng cuộn đi tìm. */}
+        {/* The result must appear right where the button was clicked — no scrolling to find it. */}
         {result ? <div className="result">
-          <header><span>CHẠY LỆNH NÀY TRONG REPO</span><button onClick={() => copy('install', result.install)}>{copied === 'install' ? 'Đã copy ✓' : 'Copy'}</button></header>
+          <header><span>RUN THIS IN THE REPO</span><button onClick={() => copy('install', result.install)}>{copied === 'install' ? 'Copied ✓' : 'Copy'}</button></header>
           <pre>{result.install}</pre>
           <footer>
-            <b>{result.seats}</b> suất đang được tài trợ · <button className="link" onClick={() => document.getElementById('handoff')?.scrollIntoView({ behavior: 'smooth' })}>xem sponsored.json và bước tiếp theo ↓</button>
+            <b>{result.seats}</b> seat{result.seats === 1 ? '' : 's'} funded right now · <button className="link" onClick={() => document.getElementById('handoff')?.scrollIntoView({ behavior: 'smooth' })}>see sponsored.json and next steps ↓</button>
           </footer>
         </div> : <>
           <Button className="cta" disabled={busy || stage === 'repo' || chain.loading || (stage === 'fund' && shortOfFunds)} onClick={primary[stage].action}>
-            {busy ? 'đang xử lý…' : primary[stage].label}
+            {busy ? 'working…' : primary[stage].label}
           </Button>
-          <small className="cta-hint">{stage === 'fund' && shortOfFunds ? `Ví chỉ có ${sgd(balance!)} — thiếu ${sgd(poolAtomic - balance!)}. Giảm số suất hoặc nạp thêm XSGD.` : primary[stage].hint}</small>
+          <small className="cta-hint">{stage === 'fund' && shortOfFunds ? `Wallet only has ${sgd(balance!)} — short ${sgd(poolAtomic - balance!)}. Reduce the seat count or top up XSGD.` : primary[stage].hint}</small>
         </>}
 
         {status && <aside>{status}</aside>}
 
         <details>
-          <summary>Chi tiết on-chain</summary>
+          <summary>On-chain details</summary>
           <div className="ids">
             <span>merchantId</span><code>{merchantId}</code>
             <span>campaignId</span><code>{campaignId}</code>
@@ -367,30 +367,30 @@ export default function SponsorPage() {
             <span>chain</span><code>avalanche-fuji / {CHAIN_ID}</code>
           </div>
           <div className="manual">
-            <Button disabled={busy || !repo || merchantApproved || !wallet} onClick={() => ensureMerchant(wallet)}>Chỉ duyệt merchant (server ký)</Button>
-            <Button disabled={busy || !repo || chain.exists} onClick={createCampaign}>Chỉ tạo campaign</Button>
-            <Button disabled={busy || !chain.exists} onClick={fundCampaign}>Chỉ nạp {sgd(poolAtomic)}</Button>
-            <Button disabled={busy || !chain.exists} onClick={registerRepo}>Chỉ lấy chuỗi cài</Button>
+            <Button disabled={busy || !repo || merchantApproved || !wallet} onClick={() => ensureMerchant(wallet)}>Just approve merchant (server-signed)</Button>
+            <Button disabled={busy || !repo || chain.exists} onClick={createCampaign}>Just create campaign</Button>
+            <Button disabled={busy || !chain.exists} onClick={fundCampaign}>Just fund {sgd(poolAtomic)}</Button>
+            <Button disabled={busy || !chain.exists} onClick={registerRepo}>Just get the install command</Button>
           </div>
-          <small>Mỗi nút là một chữ ký ví riêng. Website không bao giờ nhận private key.</small>
+          <small>Each button is its own wallet signature. This website never receives a private key.</small>
         </details>
       </div>
     </section>
 
     {result && <section className="handoff" id="handoff">
       <div>
-        <p>ĐƯA VÀO REPO</p>
-        <h2>Một dòng.<br />Không bí mật.</h2>
-        <p className="muted">Chạy trong thư mục gốc của <code>{result.repo}</code>, rồi commit <code>sponsored.json</code> và <code>.mcp.json</code>. Nó chỉ ghi con trỏ: không key, không địa chỉ ví, không địa chỉ contract. Hiện có <b>{result.seats}</b> suất đã được tài trợ.</p>
+        <p>WHAT GOES IN THE REPO</p>
+        <h2>One line.<br />No secrets.</h2>
+        <p className="muted">Run it in the root of <code>{result.repo}</code>, then commit <code>sponsored.json</code> and <code>.mcp.json</code>. It only writes pointers: no key, no wallet address, no contract address. <b>{result.seats}</b> seat{result.seats === 1 ? '' : 's'} are funded right now.</p>
       </div>
       <div className="handoff-card">
-        <header><span>1 · CHẠY TRONG REPO</span><button onClick={() => copy('install', result.install)}>{copied === 'install' ? 'Đã copy ✓' : 'Copy'}</button></header>
+        <header><span>1 · RUN IN THE REPO</span><button onClick={() => copy('install', result.install)}>{copied === 'install' ? 'Copied ✓' : 'Copy'}</button></header>
         <pre>{result.install}</pre>
-        <header><span>2 · NÓ GHI RA sponsored.json</span><button onClick={() => copy('manifest', result.manifest)}>{copied === 'manifest' ? 'Đã copy ✓' : 'Copy'}</button></header>
+        <header><span>2 · IT WRITES sponsored.json</span><button onClick={() => copy('manifest', result.manifest)}>{copied === 'manifest' ? 'Copied ✓' : 'Copy'}</button></header>
         <pre>{result.manifest}</pre>
-        <header><span>3 · VÀ .mcp.json — CLONE XONG LÀ CHẠY</span><button onClick={() => copy('mcp', result.mcp)}>{copied === 'mcp' ? 'Đã copy ✓' : 'Copy'}</button></header>
+        <header><span>3 · AND .mcp.json — CLONE AND GO</span><button onClick={() => copy('mcp', result.mcp)}>{copied === 'mcp' ? 'Copied ✓' : 'Copy'}</button></header>
         <pre>{result.mcp}</pre>
-        <footer>Phía dev: clone repo, mở Claude Code, hỏi “dự án này có tài trợ không?”. MCP verify campaign on-chain rồi phát Grant riêng cho ví của dev đó.</footer>
+        <footer>Developer side: clone the repo, open Claude Code, and ask "does this project have sponsorship?". The MCP verifies the campaign on-chain, then issues that developer their own Grant.</footer>
       </div>
     </section>}
 

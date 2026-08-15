@@ -51,33 +51,53 @@ cd web && npm run dev:neon  # NeonLite :4032
 cd web && npm run dev:evil  # merchant độc :4031
 ```
 
-MCP cục bộ dùng `.mcp.json`. Chỉ có ba tool:
+MCP cục bộ dùng `.mcp.json`. Năm tool:
 
 1. `list_sponsored_platforms(category)`
-2. `get_grant_status()`
-3. `pay_for_service(url, max_amount)`
+2. `check_project_sponsorship()` — read-only, đọc `sponsored.json` rồi verify campaign on-chain
+3. `claim_sponsored_grant()` — phát Grant cho ví hiện tại; chỉ gọi khi user yêu cầu
+4. `get_grant_status()`
+5. `pay_for_service(url, max_amount)`
 
-## Sponsor / admin
+## Sponsor
 
-Portal ở route `/sponsor` in the `web/` application. Portal **không giữ khoá** và không tự ký transaction. Owner phải dùng script/contracts để làm các bước này:
+Luồng chính là `/sponsor` trong `web/`: **dán repo GitHub → fund XSGD → nhận một dòng lệnh để đưa vào repo**. Sponsor không nhập ví developer — lúc fund thì chưa biết ai sẽ build; Grant phát ra sau, lúc developer claim.
 
-1. Duyệt merchant bằng `contracts/scripts/register.ts`.
-2. Tạo campaign, approve và fund XSGD bằng `scripts/seed.ts`.
-3. Phát Grant cho một `projectId` duy nhất.
-4. Gửi developer lệnh `sponsored-compute init` sinh từ portal.
+Mọi id on-chain (`merchantId`, `campaignId`) suy ra từ chính URL repo (`src/campaign.ts`), nên hai người dán cùng một repo luôn ra cùng một campaign. Trang tự đọc trạng thái Fuji và tuần tự hoá thành một nút:
+
+1. Kết nối ví (nó là `payTo` của merchant và sponsor của campaign)
+2. Tạo campaign — cỡ Grant mỗi developer khoá lúc này
+3. Approve + fund XSGD
+4. Lấy chuỗi cài — không ký gì, chỉ đọc lại chain rồi sinh lệnh
+
+Merchant được **duyệt tự động** trên testnet (server ký bằng khoá chủ `MerchantRegistry`, xem `web/app/api/registry/merchant`) để demo không kẹt ở bước kiểm duyệt thủ công. Mặc định **tắt trên mainnet** trừ khi đặt `SPONSORED_AUTO_APPROVE_MERCHANTS=1` — allowlist tồn tại để chặn attacker tự đăng ký ví mình làm merchant rồi `unwrap` Grant về đó (xem `docs/SPONSORED-COMPUTE.md` §9).
+
+Các bước cấp thấp hơn (`contracts/scripts/register.ts`, `scripts/seed.ts`, `npm run cli -- init`) vẫn dùng được để seed dữ liệu hoặc chạy ngoài UI.
 
 ## Developer onboarding
 
 ```bash
-npm run cli -- init \
-  --campaign 0x5fcee73cbbc7ac55687e8187df042e5b990c42d7032d57a20a2ca71ddf2b28f7 \
-  --sponsor supadb \
-  --chain 43113
+git clone <repo được tài trợ>
+cd <repo>
 ```
 
-Lệnh này ghi `sponsored.json` và `.mcp.json`; không ghi private key, API key hay ví developer. Contract từ chối một `projectId` đã từng nhận Grant.
+Mở Claude Code — `.mcp.json` tự nạp MCP server — rồi hỏi:
 
-Sau khi SupaDB có usage đủ 0.30 XSGD, developer có thể xin tranche kế tiếp:
+> dự án này có tài trợ không?
+
+Agent gọi `check_project_sponsorship` (đọc `sponsored.json`, verify on-chain, không ký gì), rồi hỏi trước khi `claim_sponsored_grant`. Claim ghi `projectId` về `sponsored.json` và báo cho registry để tra cứu — cả hai đều **best-effort**, Grant thật nằm trên chain bất kể registry có ghi được hay không.
+
+Chạy tay bằng CLI thì tương đương:
+
+```bash
+npm run cli -- init --campaign 0x… --sponsor <slug> --repo <repo-url> --chain 43113
+npm run cli -- sponsorship         # đọc trạng thái, không ký
+npm run cli -- claim-grant         # phát Grant cho ví hiện tại
+```
+
+Lệnh `init` ghi `sponsored.json` và `.mcp.json`; không ghi private key, API key hay ví developer. Contract từ chối một `projectId` đã từng nhận Grant — mỗi ví một Grant, fork lại không nhân bản được tiền.
+
+Sau khi SupaDB có usage đủ 0.30 XSGD, developer có thể xin tranche kế tiếp — khác với `claim-grant` (phát Grant lần đầu), lệnh `claim` ở đây mở tranche tiếp theo của một Grant đã tồn tại:
 
 ```bash
 CHAIN_ID=43113 GRANT_MANAGER=0x3230B5666d8De86d3079D07bb45A7075A1d0b043 \
@@ -104,4 +124,4 @@ Gọi endpoint độc qua `pay_for_service` phải bị checkpoint từ chối t
 - XSGD Fuji cho sponsor nạp campaign.
 - Private key **chỉ** cho self-relayer trong `web/.env.local`; không commit file này.
 - Self-relay là provider mặc định đã E2E với merchant `payTo` hiện tại. `0xgasless` chỉ nên bật sau khi verify thành công với đúng XSGD/Fuji/recipient; public facilitator hiện từ chối SupaDB demo recipient và docs không công bố quy trình whitelist.
-- Ví owner của `MerchantRegistry` để duyệt merchant mới.
+- Ví owner của `MerchantRegistry` để duyệt merchant mới, trừ khi dùng auto-approve testnet (`RELAYER_PRIVATE_KEY` phải là chính ví owner đó; đặt `SPONSORED_AUTO_APPROVE_MERCHANTS=0` để tắt).
