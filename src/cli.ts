@@ -26,6 +26,7 @@ import { claimGasFromGrant, claimGrantTranche } from './unwrap.js';
 import { runInit } from './init.js';
 import { formatAmount, parseRepoUrl, sponsorSlugOf } from './campaign.js';
 import { claimSponsoredGrant, readSponsorship } from './claim.js';
+import { createCampaign, fundCampaign, revokeGrant, withdrawUnused } from './sponsor.js';
 
 const ERC20 = parseAbi(['function balanceOf(address) view returns (uint256)']);
 const cmd = process.argv[2] ?? 'address';
@@ -53,7 +54,61 @@ async function fetchChallenge(amountSgd: number) {
   return ch.accepts[0];
 }
 
+const requireGrantManager = (): `0x${string}` => {
+  const gm = (arg('grant-manager') ?? process.env.GRANT_MANAGER ?? getNetwork(chainId).grantManager) as `0x${string}` | undefined;
+  if (!gm) throw new Error('thiếu --grant-manager hoặc GRANT_MANAGER');
+  return gm;
+};
+
+const requireBytes32 = (v: string | undefined, flag: string): `0x${string}` => {
+  if (!v || !/^0x[0-9a-fA-F]{64}$/.test(v)) throw new Error(`${flag} phải là bytes32`);
+  return v as `0x${string}`;
+};
+
+/** Nhận atomic units. Sai đơn vị ở đây là sai số tiền, nên chặn thẳng. */
+const requireAmount = (v: string | undefined, flag: string): bigint => {
+  if (!v || !/^\d+$/.test(v)) throw new Error(`${flag} phải là số nguyên atomic units`);
+  const amount = BigInt(v);
+  if (amount <= 0n) throw new Error(`${flag} phải lớn hơn 0`);
+  return amount;
+};
+
+const USAGE = `
+Cách dùng: sponsored-compute <lệnh> [tuỳ chọn]
+
+  address                            in địa chỉ ví agent
+  balance                            số dư XSGD và AVAX
+  challenge [sgd]                    lấy một challenge x402 từ merchant
+  verify [sgd]                       ký thử EIP-3009 rồi verify qua facilitator
+  card [sgd] [tên]                   phát thẻ demo qua đường x402
+  init <claude|codex>                ghi cấu hình MCP cho agent vào thư mục này
+  sponsorship                        đọc sponsored.json và đối chiếu on-chain
+  claim-grant --campaign <id> [--wallet <addr>]
+                                     claim Grant cho ví (tốn gas)
+  claim --grant-manager <addr> --project <id>
+                                     mở tranche vesting kế tiếp
+  claim-gas --grant-manager <addr> --project <id> --amount <atomic>
+                                     nhả AVAX gas từ Grant (18 decimals)
+
+Lệnh sponsor (ví gọi phải là sponsor của campaign):
+  create-campaign --campaign <id> --grant-amount <atomic>
+                  [--sponsor <slug> | --merchant-id <bytes32>]
+                  [--asset xsgd|avax] [--validity-days 30]
+                  [--tranche-count 2] [--tranche-period 86400]
+                  tranche-period là giây giữa hai lần nhả vốn
+  fund-campaign --campaign <id> --amount <atomic> [--asset xsgd|avax]
+  revoke-grant --grant-id <n>        thu phần chưa tiêu về campaign
+  withdraw-unused --campaign <id>    rút phần chưa cam kết về ví sponsor
+
+Biến môi trường: CHAIN_ID, GRANT_MANAGER, PROJECT_ID, SPONSORED_REGISTRY_URL
+`.trimStart();
+
 async function main() {
+  if (!cmd || cmd === '--help' || cmd === '-h' || cmd === 'help') {
+    console.log(USAGE);
+    return;
+  }
+
   banner();
   const signer = await getSigner();
   const addr = await signer.address();
@@ -195,8 +250,66 @@ async function main() {
       break;
     }
 
+    /**
+     * Các lệnh sponsor. Trước đây chỉ bấm được trên console bằng ví trình
+     * duyệt, nên không dựng được campaign để test tự động.
+     */
+    case 'create-campaign': {
+      const grantManager = requireGrantManager();
+      const campaignId = requireBytes32(arg('campaign'), '--campaign');
+      const asset = arg('asset') === 'avax' ? 1 : 0;
+      const grantAmount = requireAmount(arg('grant-amount'), '--grant-amount');
+      const out = await createCampaign({
+        grantManager, campaignId, chainId, asset,
+        sponsor: arg('sponsor'),
+        merchantId: arg('merchant-id') as `0x${string}` | undefined,
+        grantAmount,
+        ...(arg('validity-days') ? { grantValidityDays: Number(arg('validity-days')) } : {}),
+        ...(arg('tranche-count') ? { trancheCount: Number(arg('tranche-count')) } : {}),
+        ...(arg('tranche-period') ? { tranchePeriod: Number(arg('tranche-period')) } : {}),
+      });
+      if (!out.ok) throw new Error(out.error);
+      console.log(`✓ campaign đã tạo: ${net.explorer}/tx/${out.transaction}`);
+      console.log(`  campaignId: ${campaignId}  ·  asset: ${asset === 1 ? 'AVAX' : 'XSGD'}`);
+      console.log('  Nạp vốn bằng: sponsored-compute fund-campaign --campaign <id> --amount <atomic>');
+      break;
+    }
+
+    case 'fund-campaign': {
+      const grantManager = requireGrantManager();
+      const campaignId = requireBytes32(arg('campaign'), '--campaign');
+      const amount = requireAmount(arg('amount'), '--amount');
+      const asset = arg('asset') === 'avax' ? 1 : 0;
+      if (isMainnet(chainId)) console.log(`⚠️  Sắp nạp ${amount} đơn vị atomic TIỀN THẬT.`);
+      const out = await fundCampaign({ grantManager, campaignId, amount, asset, chainId });
+      if (!out.ok) throw new Error(out.error);
+      console.log(`✓ đã nạp campaign: ${net.explorer}/tx/${out.transaction}`);
+      break;
+    }
+
+    case 'revoke-grant': {
+      const grantManager = requireGrantManager();
+      const grantId = arg('grant-id');
+      if (!grantId) throw new Error('thiếu --grant-id');
+      const out = await revokeGrant({ grantManager, grantId: BigInt(grantId), chainId });
+      if (!out.ok) throw new Error(out.error);
+      console.log(`✓ Grant ${grantId} đã thu hồi: ${net.explorer}/tx/${out.transaction}`);
+      console.log('  Phần chưa tiêu đã quay lại campaign; rút về bằng withdraw-unused.');
+      break;
+    }
+
+    case 'withdraw-unused': {
+      const grantManager = requireGrantManager();
+      const campaignId = requireBytes32(arg('campaign'), '--campaign');
+      const out = await withdrawUnused({ grantManager, campaignId, chainId });
+      if (!out.ok) throw new Error(out.error);
+      console.log(`✓ đã rút phần chưa cam kết: ${net.explorer}/tx/${out.transaction}`);
+      break;
+    }
+
     default:
-      console.error(`Lệnh không rõ: ${cmd}`);
+      console.error(`Lệnh không rõ: ${cmd}\n`);
+      console.error(USAGE);
       process.exit(1);
   }
 }

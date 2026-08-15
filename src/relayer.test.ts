@@ -26,12 +26,12 @@ function check(label: string, got: string | null, want: boolean) {
   console.log(`${ok ? '✓' : '✗'} ${label}${got ? ` → ${got}` : ''}`);
 }
 
-check('cho phép authorization khớp hoá đơn', validateAuthorizationBinding(req, auth(), NOW), true);
-check('chặn recipient khác dù chữ ký có thể hợp lệ', validateAuthorizationBinding(req, auth({ to: '0x000000000000000000000000000000000000dEaD' }), NOW), false);
-check('chặn amount khác', validateAuthorizationBinding(req, auth({ value: '120001' }), NOW), false);
-check('chặn authorization đã hết hạn', validateAuthorizationBinding(req, auth({ validBefore: String(NOW) }), NOW), false);
-check('chặn chữ ký có lifetime quá dài', validateAuthorizationBinding(req, auth({ validBefore: String(NOW + 331) }), NOW), false);
-check('chặn nonce không phải bytes32', validateAuthorizationBinding(req, auth({ nonce: '0x12' as `0x${string}` }), NOW), false);
+check('allows an authorization matching the invoice', validateAuthorizationBinding(req, auth(), NOW), true);
+check('denies a different recipient even with a valid signature', validateAuthorizationBinding(req, auth({ to: '0x000000000000000000000000000000000000dEaD' }), NOW), false);
+check('denies a different amount', validateAuthorizationBinding(req, auth({ value: '120001' }), NOW), false);
+check('denies an expired authorization', validateAuthorizationBinding(req, auth({ validBefore: String(NOW) }), NOW), false);
+check('denies a signature whose lifetime is too long', validateAuthorizationBinding(req, auth({ validBefore: String(NOW + 331) }), NOW), false);
+check('denies a nonce that is not bytes32', validateAuthorizationBinding(req, auth({ nonce: '0x12' as `0x${string}` }), NOW), false);
 
 console.log(`\n${pass} pass, ${fail} fail`);
 process.exit(fail === 0 ? 0 : 1);

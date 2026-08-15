@@ -18,14 +18,15 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
-import { getSigner } from '../src/signer.js';
+import { getSigner, agentAddress } from '../src/signer.js';
 import { getGrantSource } from '../src/grant.js';
 import { claimSponsoredGrant, readSponsorship } from '../src/claim.js';
-import { formatAmount } from '../src/campaign.js';
+import { formatAmount, projectIdOf } from '../src/campaign.js';
 import { getNetwork, DEFAULT_CHAIN_ID, isMainnet } from '../src/config.js';
 import { payX402, CheckpointDenied } from '../src/pay.js';
 import { claimGasFromGrant } from '../src/unwrap.js';
 import { renderPlatforms, findPlatform } from './platforms.js';
+import { readManifest } from '../src/init.js';
 
 const net = getNetwork();
 
@@ -117,6 +118,34 @@ const TOOLS = [
   },
 ];
 
+/**
+ * claim_sponsored_grant records projectId in sponsored.json. If the tools that
+ * spend the Grant never read it back, that pointer is useless: right after a
+ * successful claim the agent still answers "No Grant exists" unless the
+ * developer exports PROJECT_ID by hand. Precedence: call argument > env > the
+ * pointer recorded in the repo.
+ *
+ * sponsored.json lives in the repo, so it is UNTRUSTED input. A projectId is
+ * derivable from campaignId + wallet, both public on-chain, so a malicious repo
+ * could pre-record someone else's projectId. unwrap() is permissionless and
+ * always pays out to the Grant's own signer, so pointing at a third party's
+ * Grant would burn their budget. Therefore take only campaignId from the file
+ * and DERIVE the projectId for this agent's own wallet.
+ *
+ * Read-only paths must not mint a wallet, so this never creates a key: with no
+ * wallet yet there is no Grant to find either.
+ */
+async function resolveProjectId(explicit?: string): Promise<string> {
+  if (explicit) return explicit;
+  if (process.env.PROJECT_ID) return process.env.PROJECT_ID;
+
+  const pointer = readManifest()?.campaigns.find((c) => c.campaignId);
+  if (!pointer?.campaignId) return '0x';
+  const wallet = await agentAddress();
+  if (!wallet) return '0x';
+  return projectIdOf(pointer.campaignId, wallet);
+}
+
 const server = new Server(
   { name: 'sponsored-compute', version: '0.1.0' },
   { capabilities: { tools: {} } },
@@ -133,7 +162,21 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
         return text(renderPlatforms(args.category));
 
       case 'check_project_sponsorship': {
-        const wallet = args.reward_wallet ?? (await (await getSigner()).address());
+        /**
+         * This tool is documented as read-only, so it must not mint a key.
+         * getSigner() generates and persists an EOA when none exists, which
+         * turned "does this repo have sponsorship?" into a silent wallet
+         * creation on the user's machine. Creation belongs to claim, where the
+         * user has explicitly asked for it.
+         */
+        const wallet = args.reward_wallet ?? (await agentAddress());
+        if (!wallet) {
+          return text(
+            'No agent wallet exists yet, so there is nothing to check a claim against.\n'
+            + 'Claiming a Grant creates one — run claim_sponsored_grant when you want that, '
+            + 'or set AGENT_PRIVATE_KEY to use an existing wallet.',
+          );
+        }
         const found = await readSponsorship({ wallet });
         if (found.length === 0) {
           return text('No sponsored.json in this project. It carries no sponsorship pointer, so there is nothing to claim.');
@@ -177,7 +220,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       }
 
       case 'get_grant_status': {
-        const g = await getGrantSource().get(args.project_id ?? process.env.PROJECT_ID ?? '0x');
+        const g = await getGrantSource().get(await resolveProjectId(args.project_id));
         if (!g) return text('No Grant exists for this project. Ask the user to choose a platform first.');
         const decimals = g.asset === 1 ? 18 : 6;
         const symbol = g.asset === 1 ? 'AVAX' : 'XSGD';
@@ -199,7 +242,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
 
       case 'pay_for_service': {
         const signer = await getSigner();
-        const grant = await getGrantSource().get(args.project_id ?? process.env.PROJECT_ID ?? '0x');
+        const grant = await getGrantSource().get(await resolveProjectId(args.project_id));
 
         /**
          * Khi có GRANT_MANAGER thì BẮT BUỘC đi qua unwrap() on-chain.
@@ -231,7 +274,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       }
 
       case 'claim_avax_gas': {
-        const grant = await getGrantSource().get(args.project_id ?? process.env.PROJECT_ID ?? '0x');
+        const grant = await getGrantSource().get(await resolveProjectId(args.project_id));
         if (!grant) return text('No Grant exists for this project.');
         if (grant.asset !== 1) return text('Denied: this is an XSGD payment Grant, not an AVAX gas Grant.');
         let amount: bigint;

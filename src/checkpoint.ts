@@ -46,7 +46,7 @@ export type DenyCode =
   | 'WRONG_NETWORK' | 'WRONG_ASSET' | 'UNSUPPORTED_SCHEME' | 'UNSUPPORTED_METHOD'
   | 'MERCHANT_NOT_ALLOWED'
   | 'OVER_CALLER_MAX' | 'OVER_PER_TX_CAP' | 'OVER_DAILY_CAP' | 'OVER_VESTED'
-  | 'BAD_AMOUNT';
+  | 'BAD_AMOUNT' | 'NOT_MY_GRANT';
 
 function deny(code: DenyCode, reason: string): Decision {
   return { ok: false, code, reason };
@@ -58,6 +58,14 @@ export interface CheckpointInput {
   /** trần do CHÍNH NGƯỜI GỌI đặt qua pay_for_service(url, max_amount) — biên ngoài cùng */
   callerMax: bigint;
   chainId: number;
+  /**
+   * Ví agent đang chi. Bắt buộc đối chiếu với grant.signer: unwrap() trên
+   * contract là permissionless và luôn trả tiền về g.signer, nên nếu không so
+   * ở đây thì một projectId trỏ vào Grant của người khác vẫn qua được — đốt
+   * hạn mức của nạn nhân. projectId suy ra được từ dữ liệu công khai on-chain,
+   * nên phải coi nó là giá trị không tin được.
+   */
+  signerAddress?: `0x${string}`;
   now?: number;
 }
 
@@ -71,6 +79,12 @@ export function checkpoint(input: CheckpointInput): Decision {
   const net = getNetwork(chainId);
 
   if (!grant) return deny('NO_GRANT', 'Chưa có Grant nào cho dự án này.');
+  if (input.signerAddress && grant.signer.toLowerCase() !== input.signerAddress.toLowerCase()) {
+    return deny(
+      'NOT_MY_GRANT',
+      `Grant ${grant.grantId} thuộc về ${grant.signer}, không phải ví agent ${input.signerAddress}.`,
+    );
+  }
   if (grant.revoked) return deny('REVOKED', `Grant ${grant.grantId} đã bị sponsor thu hồi.`);
   if (now >= grant.expiry) {
     return deny('EXPIRED', `Grant hết hạn lúc ${new Date(grant.expiry * 1000).toISOString()}.`);

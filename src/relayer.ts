@@ -71,11 +71,11 @@ export function validateAuthorizationBinding(
   auth: Authorization,
   now = Math.floor(Date.now() / 1000),
 ): string | null {
-  if (!isAddress(auth.from)) return 'authorization.from không phải địa chỉ EVM hợp lệ';
+  if (!isAddress(auth.from)) return 'authorization.from is not a valid EVM address';
   if (!isAddress(auth.to) || auth.to.toLowerCase() !== req.payTo.toLowerCase()) {
-    return 'authorization.to không khớp merchant payTo trong payment requirement';
+    return 'authorization.to does not match the merchant payTo in the payment requirement';
   }
-  if (!/^0x[0-9a-fA-F]{64}$/.test(auth.nonce)) return 'authorization.nonce không phải bytes32 hợp lệ';
+  if (!/^0x[0-9a-fA-F]{64}$/.test(auth.nonce)) return 'authorization.nonce is not a valid bytes32';
 
   let value: bigint;
   let validAfter: bigint;
@@ -85,18 +85,18 @@ export function validateAuthorizationBinding(
     validAfter = BigInt(auth.validAfter);
     validBefore = BigInt(auth.validBefore);
   } catch {
-    return 'authorization chứa value hoặc thời gian không hợp lệ';
+    return 'authorization contains an invalid value or timestamp';
   }
 
-  if (value !== BigInt(req.amount)) return 'authorization.value không khớp giá của merchant';
+  if (value !== BigInt(req.amount)) return 'authorization.value does not match the merchant price';
   const nowSeconds = BigInt(now);
   if (validAfter > nowSeconds || validBefore <= nowSeconds) {
-    return 'authorization chưa hiệu lực hoặc đã hết hạn';
+    return 'authorization is not yet valid or has expired';
   }
   // Chỉ nhận một chữ ký có lifetime xấp xỉ timeout merchant công bố. 30 giây
   // tolerance dành cho độ trễ giữa lúc client ký và lúc merchant xử lý.
   if (validBefore > nowSeconds + BigInt(req.maxTimeoutSeconds + 30)) {
-    return 'authorization có thời hạn dài hơn payment requirement cho phép';
+    return 'authorization lifetime exceeds what the payment requirement allows';
   }
   return null;
 }
