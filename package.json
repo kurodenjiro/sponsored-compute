@@ -25,6 +25,8 @@
     "card": "tsx src/cli.ts card",
     "balance": "tsx src/cli.ts balance"
   },
+  "//files": "Cài từ git thì npm clone cả repo và chạy prepare, nên trường này chỉ áp cho lúc publish npm: đừng đóng gói web/, contracts/, docs/ vào package.",
+  "files": ["dist", "README.md"],
   "engines": {
     "node": ">=20"
   },
