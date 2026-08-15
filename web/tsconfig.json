@@ -8,6 +8,12 @@
     "jsx": "preserve",
     "module": "esnext",
     "moduleResolution": "bundler",
+    "baseUrl": ".",
+    "paths": {
+      "viem": ["node_modules/viem"],
+      "viem/*": ["node_modules/viem/*"],
+      "@napi-rs/keyring": ["node_modules/@napi-rs/keyring"]
+    },
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
