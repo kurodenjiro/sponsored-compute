@@ -20,6 +20,7 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 
 import { getSigner, agentAddress } from '../src/signer.js';
 import { getGrantSource } from '../src/grant.js';
+import type { GrantView } from '../src/checkpoint.js';
 import { claimSponsoredGrant, readSponsorship } from '../src/claim.js';
 import { formatAmount, projectIdOf } from '../src/campaign.js';
 import { getNetwork, DEFAULT_CHAIN_ID, isMainnet } from '../src/config.js';
@@ -149,6 +150,38 @@ async function resolveProjectId(explicit?: string): Promise<string> {
   return projectIdOf(pointer.campaignId, wallet);
 }
 
+/**
+ * The one place Grant numbers are rendered.
+ *
+ * claim_sponsored_grant used to end with "Contract caps apply" and no figures,
+ * so the model filled the gap with the only number it had seen — the catalog's
+ * "grant per developer" — and offered it to the user as the per-transaction
+ * cap. On an AVAX grant of 0.02 that is 4x the real 0.005 limit, and the call
+ * would have been denied twice over. State the limits wherever a Grant is
+ * handed back, so nothing has to be inferred.
+ */
+function renderGrant(g: GrantView): string {
+  const decimals = g.asset === 1 ? 18 : 6;
+  const symbol = g.asset === 1 ? 'AVAX' : 'XSGD';
+  const fmt = (value: bigint) => formatAmount(value, decimals);
+  const spendable = g.released - g.spent;
+  const dailyLeft = g.dailyCap - g.spentToday;
+  // Cái nhỏ nhất mới là trần thật của lần gọi kế tiếp — nói thẳng ra.
+  const nextMax = [spendable, g.perTxCap, dailyLeft].reduce((a, b) => (b < a ? b : a));
+  return [
+    `Grant ${g.grantId}  (project ${g.projectId})`,
+    `  asset     : ${symbol} · ${g.asset === 1 ? 'gas grant' : 'x402 payment grant'}`,
+    `  vested    : ${fmt(g.released)} / ${fmt(g.total)} ${symbol}`,
+    `  spent     : ${fmt(g.spent)} ${symbol}  (today ${fmt(g.spentToday)})`,
+    `  available : ${fmt(spendable)} ${symbol}`,
+    `  caps      : ${fmt(g.perTxCap)}/transaction · ${fmt(g.dailyCap)}/day`,
+    `  max right now: ${fmt(nextMax < 0n ? 0n : nextMax)} ${symbol}  ← the most a single call can take`,
+    `  expiry    : ${new Date(g.expiry * 1000).toISOString()}`,
+    g.asset === 0 ? `  pay only to: ${g.allowedPayTo.join(', ') || '(none)'}` : '  destination : agent signer (gas only)',
+    g.revoked ? '  REVOKED' : '',
+  ].filter(Boolean).join('\n');
+}
+
 const server = new Server(
   { name: 'sponsored-compute', version: '0.1.0' },
   { capabilities: { tools: {} } },
@@ -228,38 +261,31 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
         });
         if (!out.ok) return text(`Claim denied: ${out.error}`);
         const link = out.transaction ? `\n  transaction: ${net.explorer}/tx/${out.transaction}` : '';
+
+        // Read the Grant back so the limits quoted next are the contract's, not a guess.
+        const claimed = out.projectId ? await getGrantSource().get(out.projectId).catch(() => null) : null;
+
         return text([
           out.alreadyClaimed
             ? `This wallet already holds Grant ${out.grantId} for this campaign. Nothing was issued and no gas was spent.`
-            : `✓ Grant ${out.grantId} issued.${link}`,
+            : `Grant ${out.grantId} issued.${link}`,
           `  projectId: ${out.projectId}  (written to sponsored.json)`,
           out.registered
             ? '  registry: claim recorded'
             : `  registry: not recorded (${out.registryError}) — the Grant is valid on-chain regardless`,
           '',
-          'Use the tool matching its asset: pay_for_service for XSGD, claim_avax_gas for AVAX. Contract caps apply to both.',
-        ].join('\n'));
+          claimed ? renderGrant(claimed) : '',
+          '',
+          claimed?.asset === 1
+            ? 'Use claim_avax_gas to release gas to the agent signer. Never request more than "max right now".'
+            : 'Use pay_for_service to pay a merchant. Never set max_amount above "max right now".',
+        ].filter(Boolean).join('\n'));
       }
 
       case 'get_grant_status': {
         const g = await getGrantSource().get(await resolveProjectId(args.project_id));
         if (!g) return text('No Grant exists for this project. Ask the user to choose a platform first.');
-        const decimals = g.asset === 1 ? 18 : 6;
-        const symbol = g.asset === 1 ? 'AVAX' : 'XSGD';
-        const fmt = (value: bigint) => formatAmount(value, decimals);
-        return text(
-          [
-            `Grant ${g.grantId}  (project ${g.projectId})`,
-            `  asset     : ${symbol} · ${g.asset === 1 ? 'gas grant' : 'x402 payment grant'}`,
-            `  vested    : ${fmt(g.released)} / ${fmt(g.total)} ${symbol}`,
-            `  spent     : ${fmt(g.spent)} ${symbol}  (today ${fmt(g.spentToday)})`,
-            `  available : ${fmt(g.released - g.spent)} ${symbol}`,
-            `  caps      : ${fmt(g.perTxCap)}/transaction · ${fmt(g.dailyCap)}/day`,
-            `  expiry    : ${new Date(g.expiry * 1000).toISOString()}`,
-            g.asset === 0 ? `  pay only to: ${g.allowedPayTo.join(', ') || '(none)'}` : '  destination : agent signer (gas only)',
-            g.revoked ? '  ⚠️ REVOKED' : '',
-          ].filter(Boolean).join('\n'),
-        );
+        return text(renderGrant(g));
       }
 
       case 'pay_for_service': {
