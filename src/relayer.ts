@@ -33,13 +33,38 @@ const ACCOUNT = 'relayer-eoa';
  * gì về nguyên nhân, trong khi agent thì đã unwrap tiền khỏi Grant rồi.
  * Chỉ gọt phần bao ngoài; sai thật thì báo rõ chứ không đoán khoá.
  */
+/**
+ * Mô tả HÌNH DẠNG của giá trị, không bao giờ nội dung. Chỉ báo độ dài thì
+ * người vận hành vẫn phải mò: "71 ký tự" không cho biết thừa ở đâu. Vị trí và
+ * loại ký tự lạ thì chỉ ra ngay, mà không tiết lộ chút key material nào.
+ */
+function describeShape(cleaned: string): string {
+  const body = cleaned.startsWith('0x') ? cleaned.slice(2) : cleaned;
+  const bad: string[] = [];
+  for (let i = 0; i < body.length; i += 1) {
+    if (/[0-9a-fA-F]/.test(body[i])) continue;
+    const c = body[i];
+    const kind = c === ' ' ? 'dấu cách' : c === '\n' ? 'xuống dòng' : c === '\r' ? 'carriage return'
+      : c === '\t' ? 'tab' : c === '"' || c === "'" ? 'dấu nháy' : c === 'x' || c === 'X' ? 'chữ x (0x thừa?)'
+      : 'ký tự không phải hex';
+    bad.push(`vị trí ${i + (cleaned.startsWith('0x') ? 3 : 1)}: ${kind}`);
+    if (bad.length === 4) break;
+  }
+  const hexCount = body.length - bad.length;
+  return [
+    `dài ${cleaned.length} (cần 66 kể cả 0x, hoặc 64 nếu không có 0x)`,
+    `tiền tố 0x: ${cleaned.startsWith('0x') ? 'có' : 'không'}`,
+    bad.length ? `ký tự lạ → ${bad.join('; ')}` : `toàn hex nhưng ${hexCount > 64 ? 'THỪA' : 'THIẾU'} ${Math.abs(hexCount - 64)} ký tự`,
+  ].join(' · ');
+}
+
 export function normalizeRelayerKey(raw: string): `0x${string}` {
   const cleaned = raw.trim().replace(/^['"]|['"]$/g, '').trim();
   const hex = cleaned.startsWith('0x') ? cleaned.slice(2) : cleaned;
   if (!/^[0-9a-fA-F]{64}$/.test(hex)) {
     throw new Error(
-      'RELAYER_PRIVATE_KEY sai định dạng: cần 64 ký tự hex (có hoặc không có tiền tố 0x). '
-      + `Nhận được ${cleaned.length} ký tự. Kiểm tra biến môi trường — đừng dán kèm nháy hay xuống dòng.`,
+      `RELAYER_PRIVATE_KEY sai định dạng — ${describeShape(cleaned)}. `
+      + 'Copy lại nguyên vẹn từ nguồn, đừng gõ tay và đừng dán kèm tên biến.',
     );
   }
   return `0x${hex}`;

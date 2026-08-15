@@ -66,5 +66,28 @@ for (const [label, raw] of rejects) {
   check(`rejects ${label}`, threw ? null : 'accepted a bad key', true);
 }
 
+/**
+ * The message is the whole point of this guard: an operator reading a Vercel
+ * log needs to know WHERE the value is wrong, not just that it is. It must
+ * describe the shape without ever echoing key material.
+ */
+function messageFor(raw: string): string {
+  try { normalizeRelayerKey(raw); return ''; } catch (e: any) { return e.message; }
+}
+const shapes: [string, string, string][] = [
+  ['names a value that is too long', `0x${KEY}abcde`, 'THỪA 5'],
+  ['names a value that is too short', `0x${KEY.slice(0, 58)}`, 'THIẾU 6'],
+  ['locates an embedded space', `0x${KEY.slice(0, 20)} ${KEY.slice(21)}`, 'dấu cách'],
+  ['spots a duplicated 0x prefix', `0x0x${KEY}`, 'chữ x'],
+];
+for (const [label, raw, needle] of shapes) {
+  const msg = messageFor(raw);
+  check(`${label}`, msg.includes(needle) ? null : `message was: ${msg}`, true);
+}
+// The diagnostic must never leak the secret it is describing.
+for (const [, raw] of shapes) {
+  check('never echoes key material', messageFor(raw).includes(KEY.slice(0, 16)) ? 'leaked' : null, true);
+}
+
 console.log(`\n${pass} pass, ${fail} fail`);
 process.exit(fail === 0 ? 0 : 1);
