@@ -26,9 +26,28 @@ const XSGD_ABI = parseAbi([
 const SERVICE = 'sponsored-compute';
 const ACCOUNT = 'relayer-eoa';
 
+/**
+ * Biến môi trường hay dính rác khi dán vào dashboard: thiếu tiền tố 0x, kèm
+ * cặp nháy, hoặc xuống dòng thừa. Không chuẩn hoá thì viem ném "invalid
+ * private key, expected hex or 32 bytes, got string" — một lỗi 500 không nói
+ * gì về nguyên nhân, trong khi agent thì đã unwrap tiền khỏi Grant rồi.
+ * Chỉ gọt phần bao ngoài; sai thật thì báo rõ chứ không đoán khoá.
+ */
+export function normalizeRelayerKey(raw: string): `0x${string}` {
+  const cleaned = raw.trim().replace(/^['"]|['"]$/g, '').trim();
+  const hex = cleaned.startsWith('0x') ? cleaned.slice(2) : cleaned;
+  if (!/^[0-9a-fA-F]{64}$/.test(hex)) {
+    throw new Error(
+      'RELAYER_PRIVATE_KEY sai định dạng: cần 64 ký tự hex (có hoặc không có tiền tố 0x). '
+      + `Nhận được ${cleaned.length} ký tự. Kiểm tra biến môi trường — đừng dán kèm nháy hay xuống dòng.`,
+    );
+  }
+  return `0x${hex}`;
+}
+
 /** Ví relayer — TÁCH KHỎI ví agent. Chỉ giữ AVAX để trả gas, không giữ XSGD. */
 async function relayerKey(): Promise<`0x${string}`> {
-  if (process.env.RELAYER_PRIVATE_KEY) return process.env.RELAYER_PRIVATE_KEY as `0x${string}`;
+  if (process.env.RELAYER_PRIVATE_KEY) return normalizeRelayerKey(process.env.RELAYER_PRIVATE_KEY);
   try {
     // webpackIgnore: native .node module — để Node require thẳng, bundler bỏ qua
     const { Entry } = await import(/* webpackIgnore: true */ '@napi-rs/keyring');
@@ -115,8 +134,21 @@ export async function settleDirect(
   const bound = validateAuthorizationBinding(req, auth);
   if (bound) return { success: false, payer: auth.from, error: bound };
   const chain = viemChain(chainId);
-  const pk = await relayerKey();
-  const account = privateKeyToAccount(pk);
+
+  /**
+   * Mọi thứ trước khối gửi tx vẫn có thể ném: khoá relayer sai định dạng, hoặc
+   * chữ ký dị dạng làm recoverTypedDataAddress vỡ. Trước đây chúng thoát thẳng
+   * ra ngoài thành HTTP 500 — merchant không ghi được dòng sổ nào, và người
+   * vận hành chỉ thấy lỗi viem không rõ nguồn. Tệ hơn: tới lúc này agent ĐÃ
+   * unwrap tiền khỏi Grant, nên hạn mức bị đốt mà không ai biết vì sao.
+   * SettleResult là kênh báo lỗi đúng — nó ghi sổ và trả 402 có lý do.
+   */
+  let account: ReturnType<typeof privateKeyToAccount>;
+  try {
+    account = privateKeyToAccount(await relayerKey());
+  } catch (e: any) {
+    return { success: false, payer: auth.from, error: `Cấu hình relayer hỏng: ${e?.message ?? String(e)}` };
+  }
 
   const pub = createPublicClient({ chain, transport: http(net.rpc) });
   const wallet = createWalletClient({ account, chain, transport: http(net.rpc) });
@@ -125,7 +157,9 @@ export async function settleDirect(
   //    cũng áp recipient allowlist (chỉ cho payTo = ví StraitsX). Ta tự làm,
   //    không phụ thuộc bên thứ ba nào.
   const token = net.tokens.XSGD;
-  const recovered = await recoverTypedDataAddress({
+  let recovered: `0x${string}`;
+  try {
+    recovered = await recoverTypedDataAddress({
     domain: {
       name: req.extra?.name ?? token.eip712.name,
       version: req.extra?.version ?? token.eip712.version,
@@ -145,7 +179,11 @@ export async function settleDirect(
       nonce: auth.nonce,
     },
     signature,
-  });
+    });
+  } catch {
+    // Chữ ký dị dạng là lỗi của client, không phải lỗi server.
+    return { success: false, payer: auth.from, error: 'Chữ ký không đọc được: sai định dạng ECDSA' };
+  }
   if (recovered.toLowerCase() !== auth.from.toLowerCase()) {
     return { success: false, payer: auth.from, error: `Chữ ký không khớp: recover ra ${recovered}` };
   }
