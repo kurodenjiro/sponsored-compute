@@ -93,6 +93,22 @@ The agent signs with a local EOA generated on first use and stored in the OS key
 
 Key env vars: `CHAIN_ID`, `MERCHANT_PAYTO`, `SUPABASE_URL` / `SUPABASE_SECRET_KEY`, `RELAYER_PRIVATE_KEY` (needs Fuji AVAX), `X402_SETTLEMENT_PROVIDER` (`self-relay` or `0xgasless`), `SPONSORED_REGISTRY_URL`. Local-only: `SPONSORED_LOCAL_GRANT=1` reads Grant state from a fixture file — never set it in a deployed environment.
 
+## AWS deployment example
+
+[kurodenjiro/demo-storedb-aws-1](https://github.com/kurodenjiro/demo-storedb-aws-1) is a companion repo showing a sponsored platform running on AWS instead of Vercel: **API Gateway HTTP API + Lambda (Node.js 20, arm64) + DynamoDB**, deployed with **AWS SAM**, wired to a live Sponsored Compute campaign on Fuji.
+
+It also demonstrates a second grant type this repo doesn't cover elsewhere: instead of XSGD for merchant payments, the campaign releases a capped **native AVAX gas grant** to the developer's agent signer, just enough to cover on-chain setup/deployment transactions — separate from and never substitutable for AWS billing.
+
+```bash
+git clone https://github.com/kurodenjiro/demo-storedb-aws-1
+cd demo-storedb-aws-1
+npm install
+sam build
+sam deploy --guided   # needs an AWS account + configured AWS CLI + AWS SAM CLI
+```
+
+Open Claude Code or Codex in that directory and ask it to check `sponsored.json`, verify the campaign on-chain, claim the grant, and deploy — the same checkpoint-gated flow described above, applied to AWS infrastructure instead of an x402 merchant API.
+
 ## Verify
 
 ```bash
