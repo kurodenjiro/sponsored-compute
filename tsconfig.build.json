@@ -1,10 +1,6 @@
 {
-  "//": "Build phát hành: emit CẢ src và mcp để hai bin trong package.json cùng chạy được. tsconfig.json giữ nguyên cho typecheck src, tsconfig.mcp.json cho typecheck mcp.",
+  "//": "Build phát hành: emit src/ và scripts/ để bin chạy được. tsconfig.json giữ nguyên cho typecheck.",
   "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "rootDir": ".",
-    "outDir": "dist",
-    "noEmit": false
-  },
-  "include": ["src/**/*.ts", "mcp/**/*.ts"]
+  "compilerOptions": { "rootDir": ".", "outDir": "dist", "noEmit": false },
+  "include": ["src/**/*.ts", "scripts/**/*.ts", "mcp/**/*.ts"]
 }

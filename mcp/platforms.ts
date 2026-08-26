@@ -14,9 +14,8 @@ export interface Platform {
   /** null = KHÔNG tài trợ. Vẫn phải hiện ra. */
   campaignId: string | null;
   sponsored: boolean;
-  grantSgd: number | null;
-  /** Defaults to XSGD for existing payment campaigns. */
-  symbol?: 'XSGD' | 'AVAX';
+  /** Grant size in USDC, or null when the platform is unsponsored. */
+  grantUsd: number | null;
   /** 0-100, do CON NGƯỜI đặt theo kỹ thuật — KHÔNG liên quan tới việc có tài trợ hay không */
   fitScore: number;
   note: string;
@@ -27,32 +26,32 @@ export const PLATFORMS: Platform[] = [
   // --- database ---
   { id: 'storedb-aws', name: 'StoreDB AWS', category: 'database', sponsored: true,
     campaignId: '0x6f438efc0e0ecd571eaf3dbacd6628545efd2848d852060460800231d0ab622d',
-    grantSgd: 0.02, symbol: 'AVAX', fitScore: 90, x402: false,
-    note: 'AWS Lambda + DynamoDB starter with native AVAX gas sponsorship' },
+    grantUsd: 0.02, fitScore: 90, x402: false,
+    note: 'AWS Lambda + DynamoDB starter with a sponsored infrastructure grant' },
   { id: 'supadb', name: 'SupaDB', category: 'database', sponsored: true,
-    // campaign Fuji thật, không phải placeholder UI
+    // campaign testnet thật, không phải placeholder UI
     campaignId: '0x5fcee73cbbc7ac55687e8187df042e5b990c42d7032d57a20a2ca71ddf2b28f7',
-    grantSgd: 2, fitScore: 88, x402: true,
+    grantUsd: 2, fitScore: 88, x402: true,
     note: 'Managed Postgres with realtime and authentication included' },
   { id: 'neonlite', name: 'NeonLite', category: 'database', sponsored: true,
-    // campaign Fuji thật, seed bằng SPONSOR=neonlite npx tsx scripts/seed.ts
+    // campaign testnet thật
     campaignId: '0x8c9cb9dd47a4d45a4bbd40d00489efa9a19ab6f8b17eb754dd53f37026aaeb5d',
-    grantSgd: 1, fitScore: 81, x402: true,
+    grantUsd: 1, fitScore: 81, x402: true,
     note: 'Serverless Postgres with separate compute and storage' },
   { id: 'postgres-self', name: 'PostgreSQL (self-hosted)', category: 'database', sponsored: false,
-    campaignId: null, grantSgd: null, fitScore: 92, x402: false,
+    campaignId: null, grantUsd: null, fitScore: 92, x402: false,
     note: 'Free and vendor-neutral. You operate it yourself.' },
   { id: 'sqlite', name: 'SQLite', category: 'database', sponsored: false,
-    campaignId: null, grantSgd: null, fitScore: 74, x402: false,
+    campaignId: null, grantUsd: null, fitScore: 74, x402: false,
     note: 'No server required. Well suited to small or edge projects.' },
 
   // --- monitoring ---
   { id: 'sentrywatch', name: 'SentryWatch', category: 'monitoring', sponsored: true,
     campaignId: '0x0000000000000000000000000000000000000000000000000000000000000003',
-    grantSgd: 40, fitScore: 85, x402: true,
+    grantUsd: 40, fitScore: 85, x402: true,
     note: 'Error monitoring and tracing' },
   { id: 'otel-self', name: 'OpenTelemetry (self-hosted)', category: 'monitoring', sponsored: false,
-    campaignId: null, grantSgd: null, fitScore: 79, x402: false,
+    campaignId: null, grantUsd: null, fitScore: 79, x402: false,
     note: 'Open standard with no vendor lock-in.' },
 ];
 
@@ -75,7 +74,7 @@ export function renderPlatforms(category?: string): string {
   const nU = rows.length - nS;
 
   const lines = rows.map((p, i) => {
-    const tag = p.sponsored ? `[SPONSORED · ${p.grantSgd} ${p.symbol ?? 'XSGD'}]` : '[UNSPONSORED]';
+    const tag = p.sponsored ? `[SPONSORED · ${p.grantUsd} USDC]` : '[UNSPONSORED]';
     // In kèm id: thiếu nó thì agent không có gì để truyền sang
     // claim_sponsored_grant, nên "chọn một platform" thành ngõ cụt.
     return `${i + 1}. ${p.name} ${tag}  (id: ${p.id})\n   technical fit ${p.fitScore}/100 · ${p.x402 ? 'x402' : 'no x402'}\n   ${p.note}`;

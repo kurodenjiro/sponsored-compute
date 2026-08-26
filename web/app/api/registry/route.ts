@@ -112,7 +112,7 @@ export async function GET() {
           seatsLeft: Number(available / campaign.grantAmount),
           grantAmountLabel: fmt(campaign.grantAmount, campaign.asset === 1 ? 18 : 6),
           availableLabel: fmt(available, campaign.asset === 1 ? 18 : 6),
-          symbol: campaign.asset === 1 ? 'AVAX' : 'XSGD',
+          symbol: 'USDC',
           status: campaign.paused ? ('paused' as const) : ('open' as const),
         };
       } catch {
