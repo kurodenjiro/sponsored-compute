@@ -39,6 +39,11 @@ impl GrantManager {
         self.grants.get(id).cloned()
     }
 
+    /// Which MPC signer this deployment trusts for Base signatures.
+    pub fn get_mpc_signer(&self) -> AccountId {
+        self.mpc_signer.clone()
+    }
+
     /// Allowlist + caps as the *contract* sees them.
     pub fn get_policy(&self, grant_id: U64) -> Option<(Vec<AccountId>, U128, U128, AccountId)> {
         let g = self.grants.get(&grant_id.0)?;

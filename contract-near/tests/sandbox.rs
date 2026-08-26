@@ -26,6 +26,7 @@ fn wasm(name: &str) -> Vec<u8> {
 struct World {
     token: Contract,
     gm: Contract,
+    mpc: Contract,
     sponsor: Account,
     dev: Account,
     merchant: Account,
@@ -57,7 +58,9 @@ async fn setup(worker: &Worker<Sandbox>) -> anyhow::Result<World> {
     token.call("new").args_json(json!({ "decimals": 6 })).transact().await?.into_result()?;
 
     let gm = worker.dev_deploy(&wasm("grant_manager")).await?;
-    gm.call("new").transact().await?.into_result()?;
+    let mpc = worker.dev_deploy(&wasm("mock_mpc")).await?;
+    mpc.call("new").transact().await?.into_result()?;
+    gm.call("new").args_json(json!({ "mpc_signer": mpc.id() })).transact().await?.into_result()?;
 
     let root = worker.root_account()?;
     let sponsor = root.create_subaccount("sponsor").initial_balance(NearToken::from_near(20)).transact().await?.into_result()?;
@@ -84,18 +87,19 @@ async fn setup(worker: &Worker<Sandbox>) -> anyhow::Result<World> {
         .await?
         .into_result()?;
 
-    Ok(World { token, gm, sponsor, dev, merchant, agent_key: SecretKey::from_random(near_workspaces::types::KeyType::ED25519) })
+    Ok(World { token, gm, mpc, sponsor, dev, merchant, agent_key: SecretKey::from_random(near_workspaces::types::KeyType::ED25519) })
 }
 
 fn campaign(token: &str, merchants: Vec<&str>) -> serde_json::Value {
     json!({
         "sponsor": "ignored.near", "token_id": token, "merchants": merchants,
+        "evm": null, "evm_merchants": [],
         "funded": "0", "committed": "0",
         "grant_amount": (50 * USDC).to_string(), "tranche_count": 10,
         "tranche_period_ns": DAY_NS.to_string(), "min_spend_per_tranche": (2 * USDC).to_string(),
         "grant_validity_ns": (30 * DAY_NS).to_string(),
         "per_tx_cap": (2 * USDC).to_string(), "daily_cap": (4 * USDC).to_string(),
-        "key_allowance": NearToken::from_near(2).as_yoctonear().to_string(),
+        "key_allowance": NearToken::from_near(20).as_yoctonear().to_string(),
         "paused": false,
     })
 }
@@ -298,5 +302,235 @@ async fn an_allowance_below_one_call_bricks_the_grant() -> anyhow::Result<()> {
 
     // The money never moved, and the ledger never recorded an attempt.
     assert_eq!(balance(&w.token, w.merchant.id().as_str()).await?, 0);
+    Ok(())
+}
+
+// ============================================================================
+// The Base leg (tasks 1.2–1.6)
+// ============================================================================
+
+/// A funded campaign whose Base leg is configured and whose grant is claimed.
+const MERCHANT_EVM: &str = "0x209693bc6afc0c5328ba36faf03c514ef312287c";
+const CAMPAIGN_EVM: &str = "0x7de1259cc50963091551b29da22fdd01a0b8ca79";
+const TOKEN_EVM: &str = "0x036cbd53842c5426634e7929541ec2318f3dcf7e";
+
+fn nonce(byte: u8) -> String {
+    format!("0x{}", hex(byte).repeat(32))
+}
+
+fn hex(b: u8) -> String {
+    format!("{b:02x}")
+}
+
+async fn ready_evm(w: &World) -> anyhow::Result<()> {
+    ready(w).await?;
+    w.sponsor
+        .call(w.gm.id(), "set_evm_leg")
+        .args_json(json!({ "id": "acme", "leg": {
+            "chain_id": 84532, "token": TOKEN_EVM,
+            "token_name": "USDC", "token_version": "2", "address": CAMPAIGN_EVM,
+        }}))
+        .deposit(ONE_YOCTO)
+        .transact()
+        .await?
+        .into_result()?;
+    w.sponsor
+        .call(w.gm.id(), "set_evm_merchants")
+        .args_json(json!({ "id": "acme", "merchants": [MERCHANT_EVM] }))
+        .deposit(ONE_YOCTO)
+        .transact()
+        .await?
+        .into_result()?;
+    Ok(())
+}
+
+/// `valid_before` in nanoseconds, `secs` from the sandbox's current block time.
+async fn soon(worker: &Worker<Sandbox>, secs: u64) -> anyhow::Result<String> {
+    let now = worker.view_block().await?.timestamp();
+    Ok((now + secs * 1_000_000_000).to_string())
+}
+
+async fn request_signature(
+    w: &World,
+    worker: &Worker<Sandbox>,
+    to: &str,
+    amount: u128,
+    valid_before: String,
+    nonce: String,
+) -> anyhow::Result<near_workspaces::result::ExecutionFinalResult> {
+    Ok(agent(w, worker)
+        .call(w.gm.id(), "request_evm_signature")
+        .args_json(json!({ "to": to, "amount": amount.to_string(), "valid_before": valid_before, "nonce": nonce }))
+        .gas(near_workspaces::types::Gas::from_tgas(220))
+        .transact()
+        .await?)
+}
+
+#[tokio::test]
+async fn a_signature_comes_back_assembled_and_eip2_normalised() -> anyhow::Result<()> {
+    let worker = near_workspaces::sandbox().await?;
+    let w = setup(&worker).await?;
+    ready_evm(&w).await?;
+
+    let vb = soon(&worker, 120).await?;
+    let out = request_signature(&w, &worker, MERCHANT_EVM, USDC, vb, nonce(0x11)).await?;
+    let sig: Option<String> = out.into_result()?.json()?;
+    let sig = sig.expect("a signature");
+
+    // 65 bytes: r ‖ s ‖ v.
+    assert_eq!(sig.len(), 2 + 130, "expected 65 bytes, got {sig}");
+    // The mock answers with s = n-1, above the half order. Normalising it must
+    // yield exactly 1 and flip the parity bit: v = (0 ^ 1) + 27 = 28.
+    let s_part = &sig[2 + 64..2 + 128];
+    assert_eq!(s_part, format!("{:0>64}", "1"), "s was not normalised into the lower half");
+    assert_eq!(&sig[2 + 128..], "1c", "recovery id did not flip with s");
+
+    // The authorisation is counted the moment it is issued, not when it settles.
+    let g: serde_json::Value = w.gm.view("get_grant").args_json(json!({ "grant_id": "1" })).await?.json()?;
+    assert_eq!(g["reserved"].as_str().unwrap(), USDC.to_string());
+    assert_eq!(g["spent"].as_str().unwrap(), USDC.to_string());
+    assert_eq!(g["reservations"].as_array().unwrap().len(), 1);
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_failed_signing_round_gives_the_budget_back() -> anyhow::Result<()> {
+    let worker = near_workspaces::sandbox().await?;
+    let w = setup(&worker).await?;
+    ready_evm(&w).await?;
+    w.mpc.call("set_fail").args_json(json!({ "fail": true })).transact().await?.into_result()?;
+
+    let vb = soon(&worker, 120).await?;
+    let out = request_signature(&w, &worker, MERCHANT_EVM, USDC, vb, nonce(0x22)).await?;
+    let sig: Option<String> = out.into_result()?.json()?;
+    assert!(sig.is_none(), "no signature should come back");
+
+    // Unlike an expired reservation, a failed round is *certain* to have produced
+    // nothing, so it releases without anyone attesting to it.
+    let g: serde_json::Value = w.gm.view("get_grant").args_json(json!({ "grant_id": "1" })).await?.json()?;
+    assert_eq!(g["spent"].as_str().unwrap(), "0", "budget must come back");
+    assert_eq!(g["reserved"].as_str().unwrap(), "0");
+    assert_eq!(g["reservations"].as_array().unwrap().len(), 0);
+    Ok(())
+}
+
+#[tokio::test]
+async fn only_the_sponsor_can_release_a_reservation() -> anyhow::Result<()> {
+    let worker = near_workspaces::sandbox().await?;
+    let w = setup(&worker).await?;
+    ready_evm(&w).await?;
+    let vb = soon(&worker, 120).await?;
+    request_signature(&w, &worker, MERCHANT_EVM, USDC, vb, nonce(0x33)).await?.into_result()?;
+
+    // The developer is the party who benefits from a release, which is exactly
+    // why they are not allowed to perform one.
+    let err = format!(
+        "{:?}",
+        w.dev
+            .call(w.gm.id(), "release_reservation")
+            .args_json(json!({ "grant_id": "1", "nonce": nonce(0x33) }))
+            .deposit(ONE_YOCTO)
+            .transact()
+            .await?
+            .into_result()
+            .unwrap_err()
+    );
+    assert!(err.contains("only the sponsor releases"), "got: {err}");
+
+    let freed: serde_json::Value = w
+        .sponsor
+        .call(w.gm.id(), "release_reservation")
+        .args_json(json!({ "grant_id": "1", "nonce": nonce(0x33) }))
+        .deposit(ONE_YOCTO)
+        .transact()
+        .await?
+        .into_result()?
+        .json()?;
+    assert_eq!(freed.as_str().unwrap(), USDC.to_string());
+
+    let g: serde_json::Value = w.gm.view("get_grant").args_json(json!({ "grant_id": "1" })).await?.json()?;
+    assert_eq!(g["spent"].as_str().unwrap(), "0");
+    Ok(())
+}
+
+/// Task 1.6. Each of these must be refused *before* the signer is ever asked,
+/// so a rejected request costs nothing and reveals nothing.
+#[tokio::test]
+async fn the_signer_refuses_anything_the_caps_did_not_allow() -> anyhow::Result<()> {
+    let worker = near_workspaces::sandbox().await?;
+    let w = setup(&worker).await?;
+    ready_evm(&w).await?;
+
+    let ok_vb = soon(&worker, 120).await?;
+    let cases: Vec<(&str, String, u128, String, String)> = vec![
+        (
+            "merchant not in the campaign allowlist",
+            "0x000000000000000000000000000000000000dead".into(),
+            USDC,
+            ok_vb.clone(),
+            nonce(0x41),
+        ),
+        ("over the per-transaction cap", MERCHANT_EVM.into(), 3 * USDC, ok_vb.clone(), nonce(0x42)),
+        (
+            "further ahead than the contract will stay blind",
+            MERCHANT_EVM.into(),
+            USDC,
+            soon(&worker, 3600).await?,
+            nonce(0x43),
+        ),
+        (
+            "valid_before is already in the past",
+            MERCHANT_EVM.into(),
+            USDC,
+            "1".into(),
+            nonce(0x44),
+        ),
+    ];
+
+    for (expected, to, amount, vb, n) in cases {
+        let err = format!(
+            "{:?}",
+            request_signature(&w, &worker, &to, amount, vb, n).await?.into_result().unwrap_err()
+        );
+        assert!(err.contains(expected), "expected {expected:?}, got: {err}");
+    }
+
+    // Nothing was authorised, so nothing was counted.
+    let g: serde_json::Value = w.gm.view("get_grant").args_json(json!({ "grant_id": "1" })).await?.json()?;
+    assert_eq!(g["spent"].as_str().unwrap(), "0");
+    assert_eq!(g["reservations"].as_array().unwrap().len(), 0);
+    Ok(())
+}
+
+/// Reusing a nonce would authorise the same transfer twice under one budget line.
+#[tokio::test]
+async fn the_same_nonce_cannot_be_authorised_twice() -> anyhow::Result<()> {
+    let worker = near_workspaces::sandbox().await?;
+    let w = setup(&worker).await?;
+    ready_evm(&w).await?;
+
+    let vb = soon(&worker, 120).await?;
+    request_signature(&w, &worker, MERCHANT_EVM, USDC, vb.clone(), nonce(0x55)).await?.into_result()?;
+    let err = format!(
+        "{:?}",
+        request_signature(&w, &worker, MERCHANT_EVM, USDC, vb, nonce(0x55)).await?.into_result().unwrap_err()
+    );
+    assert!(err.contains("already reserved"), "got: {err}");
+    Ok(())
+}
+
+/// A campaign with no Base leg must refuse rather than sign under a guessed domain.
+#[tokio::test]
+async fn a_campaign_without_a_base_leg_signs_nothing() -> anyhow::Result<()> {
+    let worker = near_workspaces::sandbox().await?;
+    let w = setup(&worker).await?;
+    ready(&w).await?; // no set_evm_leg
+
+    let vb = soon(&worker, 120).await?;
+    let err = format!(
+        "{:?}",
+        request_signature(&w, &worker, MERCHANT_EVM, USDC, vb, nonce(0x66)).await?.into_result().unwrap_err()
+    );
+    assert!(err.contains("no Base leg"), "got: {err}");
     Ok(())
 }

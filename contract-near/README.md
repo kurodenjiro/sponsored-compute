@@ -21,10 +21,20 @@ Verified on testnet 26/08/2026, before and after.
 
 ```bash
 npm run near:build     # wasm → contract-near/target/wasm32-unknown-unknown/release/
-npm run near:test      # 24 policy tests, mocked VM, no network
-npm run near:deploy    # redeploy to $NEAR_GRANT_MANAGER (default: the testnet address above)
+npm run near:test      # 42 tests: eip712 + policy (mocked VM) + sandbox (near-workspaces)
+npm run near:deploy    # redeploy to $NEAR_GRANT_MANAGER
 npm run near:spike     # full end-to-end run against testnet
+npm run base:sign -- <campaign> <repo>   # real MPC signature, verified by ecrecover
 ```
+
+⚠️ **Do not run `cargo test` directly after changing the contract.** It builds the
+host test binary, not the wasm, so the sandbox tests load whatever
+`release/grant_manager.wasm` happened to be there — and pass or fail against the
+*previous* build. `npm run near:test` builds first.
+
+⚠️ **Changing `Campaign` or `Grant` breaks Borsh compatibility with deployed
+state.** There is no migration; recreate the account instead of deploying over
+it. Fine while this is pre-MVP, not fine later.
 
 ## Where the access key lives
 
@@ -56,6 +66,29 @@ account of its own.
 `allowance` is a **gas** budget in yoctoNEAR — not a spend cap. Spend caps live
 in `Campaign`/`Grant`. The key decides *who may call what*; contract state
 decides *how much*.
+
+## The Base leg
+
+`request_evm_signature` takes **fields — never a digest**. The contract checks
+them against its own state, then builds the EIP-712 digest itself and asks
+`v1.signer` to sign it. A method that accepted a hash would be an oracle that
+signs anything, because a hash cannot be inspected: "pay this merchant 1 USDC"
+and "move the balance to me" look identical going in.
+
+Verified against live testnet, not just in tests — `npm run base:sign` gets a
+real signature, rebuilds the digest independently with `viem`, and recovers the
+signer:
+
+```
+recovered 0x20b28B70AfD5AAD5534F44Cf3e8503D83414c3DF
+expected  0x20b28B70AfD5AAD5534F44Cf3e8503D83414c3DF
+✓ the contract signs for the address it derives
+```
+
+**Budget is consumed when the signature is issued, not when it settles.** The
+contract cannot see Base, and counting only confirmed settlements would let an
+agent collect authorisations without limit. `release_reservation` gives budget
+back, and it is sponsor-only on purpose — see the note in `src/evm.rs`.
 
 ## Two layers, one rule set
 

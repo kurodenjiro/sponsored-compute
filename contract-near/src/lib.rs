@@ -26,6 +26,10 @@ use near_sdk::{
 /// (docs/ROADMAP-NEAR-MVP.md §7, criterion 6).
 mod views;
 
+/// EIP-712 digest construction for the Base leg. Reviewed separately from the
+/// ledger (docs/ROADMAP-NEAR-MVP.md §7, criterion 6).
+pub mod evm;
+
 const DAY_NS: u64 = 86_400_000_000_000;
 const ONE_YOCTO: NearToken = NearToken::from_yoctonear(1);
 const GAS_FT_TRANSFER: Gas = Gas::from_tgas(10);
@@ -33,7 +37,11 @@ const GAS_STORAGE_CHECK: Gas = Gas::from_tgas(5);
 /// Each merchant costs one view call; bound the list so gas stays predictable.
 const MAX_MERCHANTS: usize = 10;
 /// The only methods a grant key may call — the runtime rejects anything else.
-const GRANT_METHODS: &str = "pay_merchant,claim_tranche";
+///
+/// Adding one here widens what every existing grant can do, so the list is the
+/// security boundary, not a convenience. Each entry is a method that spends
+/// against the grant's own caps and nothing else.
+const GRANT_METHODS: &str = "pay_merchant,claim_tranche,request_evm_signature";
 
 #[derive(BorshStorageKey)]
 #[near]
@@ -54,6 +62,15 @@ pub struct Campaign {
     /// Merchant allowlist — sponsor-curated in v1 (§7.2 layer 5). The source of
     /// truth for `pay_merchant`; a merchant's own 402 challenge is never trusted.
     pub merchants: Vec<AccountId>,
+    /// The Base leg. `None` until a sponsor funds an EVM address for this campaign.
+    pub evm: Option<EvmLeg>,
+    /// Base merchants, lowercase `0x…`.
+    ///
+    /// Separate from `merchants` because `AccountId` cannot carry an EVM address
+    /// with any meaning: lowercase hex happens to pass NEAR's validity rules, so
+    /// one shared list would *accept* a Base address and then explode the first
+    /// time something handed it to `ft_transfer`.
+    pub evm_merchants: Vec<String>,
     pub funded: U128,
     pub committed: U128,
     pub grant_amount: U128,
@@ -95,6 +112,11 @@ pub struct Grant {
     pub day: U64,
     pub spent_at_tranche: U128,
     pub tranche_claimed: u32,
+    /// Part of `spent` that was authorised for Base but never confirmed to have
+    /// settled. Counted against every cap from the moment the signature is
+    /// issued — see `request_evm_signature`.
+    pub reserved: U128,
+    pub reservations: Vec<Reservation>,
     pub issued_at_ns: U64,
     pub expiry_ns: U64,
     pub revoked: bool,
@@ -105,6 +127,42 @@ pub struct Grant {
 pub struct StorageBalance {
     pub total: U128,
     pub available: U128,
+}
+
+/// EIP-712 domain of the token a campaign pays in on Base, plus the address the
+/// contract signs from.
+///
+/// Held in contract state rather than taken per call: the digest has to be built
+/// from something the caller cannot choose, or "sign this payment" and "sign
+/// anything" become the same request.
+#[near(serializers = [borsh, json])]
+#[derive(Clone)]
+pub struct EvmLeg {
+    pub chain_id: u64,
+    /// ERC-20 contract, lowercase `0x…`.
+    pub token: String,
+    /// EIP-712 `name`. Circle's USDC is `"USD Coin"` on Base and `"USDC"` on
+    /// Base Sepolia — the same token, a different domain.
+    pub token_name: String,
+    pub token_version: String,
+    /// The address this campaign signs from: `derived(grant-manager, "campaign-<id>")`.
+    ///
+    /// Supplied by the sponsor, who is also the one funding it. A wrong value
+    /// costs them working payments, never anyone else's money — the signature
+    /// simply will not recover to an address that holds anything.
+    pub address: String,
+}
+
+/// A signature the contract issued whose fate on Base it cannot observe.
+#[near(serializers = [borsh, json])]
+#[derive(Clone)]
+pub struct Reservation {
+    pub nonce: String,
+    pub to: String,
+    pub amount: U128,
+    /// The `validBefore` the contract signed. Past this the authorisation is
+    /// dead on Base, so the outcome is final either way.
+    pub expires_ns: U64,
 }
 
 #[allow(dead_code)]
@@ -123,13 +181,20 @@ pub struct GrantManager {
     pub(crate) grant_of_repo: LookupMap<String, u64>,
     pub(crate) grant_of_key: LookupMap<PublicKey, u64>,
     pub(crate) next_grant_id: u64,
+    /// The MPC signer this deployment asks for Base signatures.
+    ///
+    /// State rather than a constant picked from the account suffix: that guess
+    /// is wrong on any account whose name does not encode its network, and it
+    /// leaves no way to point a test at a stand-in.
+    pub(crate) mpc_signer: AccountId,
 }
 
 #[near]
 impl GrantManager {
     #[init]
-    pub fn new() -> Self {
+    pub fn new(mpc_signer: AccountId) -> Self {
         Self {
+            mpc_signer,
             campaigns: IterableMap::new(Key::Campaigns),
             grants: IterableMap::new(Key::Grants),
             grant_of_repo: LookupMap::new(Key::GrantOfRepo),
@@ -151,6 +216,10 @@ impl GrantManager {
         c.funded = U128(0);
         c.committed = U128(0);
         c.paused = false;
+        // The Base leg arrives through `set_evm_leg`/`set_evm_merchants`, which
+        // validate. Accepting it here would mean parsing addresses in two places.
+        c.evm = None;
+        c.evm_merchants = Vec::new();
         self.campaigns.insert(id, c);
     }
 
@@ -275,6 +344,8 @@ impl GrantManager {
             day: U64(now / DAY_NS),
             spent_at_tranche: U128(0),
             tranche_claimed: 1,
+            reserved: U128(0),
+            reservations: Vec::new(),
             issued_at_ns: U64(now),
             expiry_ns: U64(now + c.grant_validity_ns.0),
             revoked: false,

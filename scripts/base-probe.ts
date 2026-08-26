@@ -9,15 +9,25 @@
  *      merchant's typed data, and print exactly what the contract would be
  *      asked to sign
  *
- * Usage: npm run base:probe [url]
+ * With `--real <campaign> <repo>` it instead uses the contract-backed requester
+ * and genuinely attempts the payment — that is task 1.11, and it needs the
+ * campaign's derived address to hold USDC on Base Sepolia.
+ *
+ * Usage: npm run base:probe [url] [--real <campaign> <repo>]
  */
 
 import { parseChallenge } from '../src/base/x402.js';
+import { contractSignatureRequester } from '../src/near/evm-requester.js';
+import { NearGrantSource } from '../src/near/grant.js';
+import { deriveCampaignAddress } from '../src/base/address.js';
 import { payX402Base, type EvmSignatureRequester } from '../src/base/pay.js';
 import { getBaseNetwork } from '../src/base/config.js';
 import type { Grant } from '../src/core/types.js';
 
-const URL_ = process.argv[2] ?? 'https://x402.org/protected';
+const argv = process.argv.slice(2);
+const realAt = argv.indexOf('--real');
+const REAL = realAt !== -1 ? { campaign: argv[realAt + 1], repo: argv[realAt + 2] } : null;
+const URL_ = (argv[0] && !argv[0].startsWith('--') ? argv[0] : undefined) ?? 'https://x402.org/protected';
 const CHAIN = 84532;
 const net = getBaseNetwork(CHAIN);
 const FROM = '0x7De1259Cc50963091551B29DA22fDd01a0b8Ca79';
@@ -43,6 +53,27 @@ async function main() {
   const req = (challenge.accepts ?? []).find((a) => a.network === net.caip2);
   if (!req) {
     console.log(`\n  nothing offered on ${net.caip2} — nothing to sign`);
+    return;
+  }
+
+  if (REAL) {
+    // The real thing: the grant comes from chain, and the signature from the
+    // contract. Money moves if the derived address is funded.
+    const grant = await new NearGrantSource().byRepo(REAL.campaign, REAL.repo);
+    if (!grant) throw new Error(`no grant for ${REAL.repo} under "${REAL.campaign}"`);
+    const address = await deriveCampaignAddress(REAL.campaign);
+    console.log(`\n▸ 2/2  real payment — grant #${grant.grantId} signing from ${address}\n`);
+    const result = await payX402Base({
+      url: URL_,
+      address,
+      grant,
+      callerMax: BigInt(req.amount),
+      requester: await contractSignatureRequester(),
+      chainId: CHAIN,
+    });
+    console.log(`  HTTP ${result.status}  payment ${result.paymentStatus ?? '(none)'}`);
+    console.log(`  body ${JSON.stringify(result.body).slice(0, 200)}`);
+    if (result.settlement) console.log(`  settlement ${JSON.stringify(result.settlement).slice(0, 300)}`);
     return;
   }
 

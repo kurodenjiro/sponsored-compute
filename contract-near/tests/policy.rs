@@ -41,6 +41,8 @@ fn campaign() -> Campaign {
         sponsor: acc("nobody.test.near"),
         token_id: acc("usdc.test.near"),
         merchants: vec![acc("neonlite.test.near")],
+        evm: None,
+        evm_merchants: Vec::new(),
         funded: U128(0),
         committed: U128(0),
         grant_amount: U128(50 * USDC),
@@ -58,7 +60,7 @@ fn campaign() -> Campaign {
 /// Funded campaign with one grant claimed against `repo`, ready to spend.
 fn funded_with_grant() -> GrantManager {
     testing_env!(ctx("sponsor.test.near", pk(1), 0, 0).build());
-    let mut gm = GrantManager::new();
+    let mut gm = GrantManager::new(acc("v1.signer.test.near"));
     gm.create_campaign("acme".into(), campaign());
 
     testing_env!(ctx("usdc.test.near", pk(1), 0, 0).build());
@@ -288,7 +290,7 @@ fn a_developer_cannot_revoke_their_own_grant_away() {
 #[should_panic(expected = "wrong token for this campaign")]
 fn a_foreign_token_cannot_fund_a_campaign() {
     testing_env!(ctx("sponsor.test.near", pk(1), 0, 0).build());
-    let mut gm = GrantManager::new();
+    let mut gm = GrantManager::new(acc("v1.signer.test.near"));
     gm.create_campaign("acme".into(), campaign());
     testing_env!(ctx("shitcoin.test.near", pk(1), 0, 0).build());
     gm.ft_on_transfer(acc("sponsor.test.near"), U128(500 * USDC), "acme".into());
@@ -298,7 +300,7 @@ fn a_foreign_token_cannot_fund_a_campaign() {
 #[should_panic(expected = "campaign out of funds")]
 fn claims_stop_when_the_campaign_runs_dry() {
     testing_env!(ctx("sponsor.test.near", pk(1), 0, 0).build());
-    let mut gm = GrantManager::new();
+    let mut gm = GrantManager::new(acc("v1.signer.test.near"));
     gm.create_campaign("acme".into(), campaign());
     testing_env!(ctx("usdc.test.near", pk(1), 0, 0).build());
     gm.ft_on_transfer(acc("sponsor.test.near"), U128(60 * USDC), "acme".into());

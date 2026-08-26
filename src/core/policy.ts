@@ -14,14 +14,14 @@
  * again on-chain; a patched client still cannot spend past them.
  */
 
-import { sameAddress, type Grant, type PaymentIntent } from './types.js';
+import { sameAddress, type Grant, type PaymentIntent, type Payee } from './types.js';
 
 export type DenyCode =
   | 'NO_GRANT' | 'REVOKED' | 'EXPIRED'
   | 'WRONG_NETWORK' | 'WRONG_ASSET' | 'UNSUPPORTED_SCHEME' | 'UNSUPPORTED_METHOD'
   | 'MERCHANT_NOT_ALLOWED'
   | 'OVER_CALLER_MAX' | 'OVER_PER_TX_CAP' | 'OVER_DAILY_CAP' | 'OVER_VESTED'
-  | 'BAD_AMOUNT' | 'NOT_MY_GRANT';
+  | 'BAD_AMOUNT' | 'NOT_MY_GRANT' | 'RATE_LIMITED';
 
 export type Decision =
   | { ok: true; amount: bigint; intent: PaymentIntent }
@@ -29,6 +29,13 @@ export type Decision =
 
 function deny(code: DenyCode, reason: string): Decision {
   return { ok: false, code, reason };
+}
+
+/** One authorisation this agent already made, for rate limiting. */
+export interface RecentPayment {
+  payee: Payee;
+  /** Unix seconds. */
+  at: number;
 }
 
 export interface PolicyInput {
@@ -44,6 +51,22 @@ export interface PolicyInput {
   spender?: string;
   /** Transfer methods this build can actually execute. */
   allowedTransferMethods: readonly string[];
+  /**
+   * How many authorisations one merchant may receive per hour.
+   *
+   * Aimed at a specific attack: a merchant that passes `verify` and then lets
+   * settlement revert, over and over, burns the sponsor's budget without ever
+   * delivering anything — the class that a survey of 15 facilitators found every
+   * one of them exposed to (docs/ROADMAP-NEAR-MVP.md §2.5).
+   *
+   * ⚠️ Be clear about what this does and does not protect. `recent` is the
+   * agent's own record, so a *compromised agent* can forget it. This bounds what
+   * a **hostile merchant** can extract from an honest agent; what bounds a
+   * dishonest one is the contract, which counts every authorisation it issues.
+   */
+  maxPerMerchantPerHour?: number;
+  /** Newest first or not — order does not matter, only timestamps do. */
+  recent?: readonly RecentPayment[];
   /** Unix seconds; injectable so tests are not clock-dependent. */
   now?: number;
 }
@@ -99,6 +122,25 @@ export function evaluate(input: PolicyInput): Decision {
       'MERCHANT_NOT_ALLOWED',
       `payTo ${intent.payTo} is not in this Grant's allowlist. A Grant is purpose-bound, not cash.`,
     );
+  }
+
+  // --- Rate limit, before the caps: it is about frequency, not size. ---
+  if (input.maxPerMerchantPerHour !== undefined) {
+    if (!input.recent) {
+      // Fail closed. A caller that configures a limit and then forgets to pass
+      // history would otherwise get no limit at all, which is the worst of both.
+      return deny('RATE_LIMITED', 'A per-merchant rate limit is configured but no payment history was supplied.');
+    }
+    const since = now - 3600;
+    const hits = input.recent.filter(
+      (r) => r.at > since && r.payee.chain === intent.chain && sameAddress(r.payee.address, intent.payTo),
+    ).length;
+    if (hits >= input.maxPerMerchantPerHour) {
+      return deny(
+        'RATE_LIMITED',
+        `${intent.payTo} has already been paid ${hits} times in the last hour, at a limit of ${input.maxPerMerchantPerHour}.`,
+      );
+    }
   }
 
   // --- Caps, outermost first. ---

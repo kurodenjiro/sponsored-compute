@@ -17,7 +17,7 @@
  */
 
 import { writeFileSync } from 'node:fs';
-import { hashTypedData } from 'viem';
+import { hashTypedData, hashDomain, keccak256, toHex } from 'viem';
 import { BASE_NETWORKS } from '../src/base/config.js';
 
 const FROM = '0x7De1259Cc50963091551B29DA22fDd01a0b8Ca79' as const;
@@ -67,12 +67,32 @@ const cases = Object.values(BASE_NETWORKS).flatMap((net) =>
       validAfter: '0',
       validBefore: '1800000300',
       nonce: message.nonce,
+      // The intermediates are here so a Rust failure says *which* step drifted.
+      // A bare digest mismatch tells you nothing about where to look.
+      domainSeparator: hashDomain({
+        domain: { ...domain, chainId: BigInt(domain.chainId) },
+        types: {
+          EIP712Domain: [
+            { name: 'name', type: 'string' },
+            { name: 'version', type: 'string' },
+            { name: 'chainId', type: 'uint256' },
+            { name: 'verifyingContract', type: 'address' },
+          ],
+        },
+      }),
       digest: hashTypedData({ domain, types: TYPES, primaryType: 'TransferWithAuthorization', message }),
     };
   }),
 );
 
+const typeHashes = {
+  eip712Domain: keccak256(toHex('EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)')),
+  transferWithAuthorization: keccak256(
+    toHex('TransferWithAuthorization(address from,address to,uint256 value,uint256 validAfter,uint256 validBefore,bytes32 nonce)'),
+  ),
+};
+
 const out = 'contract-near/tests/fixtures/eip712.json';
-writeFileSync(out, JSON.stringify(cases, null, 2) + '\n');
-console.log(`${cases.length} vectors → ${out}`);
+writeFileSync(out, JSON.stringify({ typeHashes, cases }, null, 2) + '\n');
+console.log(`${cases.length} vectors + 2 type hashes → ${out}`);
 for (const c of cases) console.log(`  ${c.label.padEnd(22)} ${c.domainName.padEnd(9)} ${c.digest}`);

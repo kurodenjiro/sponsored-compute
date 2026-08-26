@@ -5,7 +5,7 @@
  */
 
 import { JsonRpcProvider } from 'near-api-js';
-import type { Grant, Payee } from '../core/types.js';
+import type { Caip2, Grant, Payee } from '../core/types.js';
 import { getNearNetwork, requireGrantManager, tokenById } from './config.js';
 import { nearProvider } from './signer.js';
 
@@ -30,10 +30,20 @@ interface RawGrant {
   revoked: boolean;
 }
 
+interface RawEvmLeg {
+  chain_id: number;
+  token: string;
+  token_name: string;
+  token_version: string;
+  address: string;
+}
+
 interface RawCampaign {
   sponsor: string;
   token_id: string;
   merchants: string[];
+  evm: RawEvmLeg | null;
+  evm_merchants: string[];
   funded: string;
   committed: string;
   grant_amount: string;
@@ -103,6 +113,18 @@ export class NearGrantSource {
     const known = tokenById(c.token_id, this.networkId);
     const payees: Payee[] = c.merchants.map((address) => ({ chain: net.caip2, address }));
 
+    // The Base leg, when the sponsor has configured one. Both lists stay keyed
+    // by chain: an address allowlisted on Sepolia must not authorise a payment
+    // on mainnet just because the bytes match.
+    const chains: Caip2[] = [net.caip2];
+    const assets: string[] = [c.token_id];
+    if (c.evm) {
+      const evmChain = `eip155:${c.evm.chain_id}`;
+      chains.push(evmChain);
+      assets.push(c.evm.token);
+      payees.push(...c.evm_merchants.map((address) => ({ chain: evmChain, address })));
+    }
+
     // `spent_today` is only meaningful for the day it was stamped. The contract
     // resets it lazily on the next spend, so a stale value read here would let
     // the client think yesterday's spending still counts against today's cap —
@@ -117,10 +139,8 @@ export class NearGrantSource {
       spender: raw.agent_pk,
       homeChain: net.caip2,
       asset: known ?? { id: c.token_id, symbol: c.token_id, decimals: 0 },
-      // One chain until Chain Signatures lands; then the derived Base/Solana
-      // legs get added here, never by widening the check at the call site.
-      spendableChains: [net.caip2],
-      spendableAssets: [c.token_id],
+      spendableChains: chains,
+      spendableAssets: assets,
       allowedPayees: payees,
       total: BigInt(raw.total),
       released: BigInt(raw.released),
