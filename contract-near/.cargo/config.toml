@@ -1,0 +1,16 @@
+# near-sdk only routes panics (and other host calls) to the NEAR runtime under
+# `cfg(all(near, target_arch = "wasm32"))`. `cargo near build` sets `--cfg near`;
+# a plain `cargo build --target wasm32-unknown-unknown` does not, and the SDK
+# silently falls back to its local path — every `require!` then reaches the chain
+# as "WebAssembly trap: unreachable" with the message stripped off.
+#
+# Verified on testnet 26/08/2026: without this, `revoke_grant` on an already
+# revoked grant reports a bare trap; with it, "already revoked".
+[target.wasm32-unknown-unknown]
+#
+# `-C target-cpu=mvp` pins wasm to the MVP feature set. Newer rustc emits
+# bulk-memory and sign-ext opcodes by default, which testnet accepts but the
+# nearcore bundled with near-workspaces rejects — the sandbox reports it as
+# `CompilationError(PrepareError(Deserialization))`, which reads like a corrupt
+# file rather than an unsupported opcode.
+rustflags = ["--cfg", "near", "-C", "target-cpu=mvp"]

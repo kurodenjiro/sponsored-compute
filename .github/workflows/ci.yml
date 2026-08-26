@@ -1,0 +1,19 @@
+name: ci
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - uses: dtolnay/rust-toolchain@stable
+        with: { targets: wasm32-unknown-unknown }
+      - run: npm ci
+      - run: npm run typecheck
+      # Must come before the guards: guard 1 inspects the wasm this produces,
+      # and it is the build script that supplies --cfg near.
+      - run: npm run near:build
+      - run: npm run ci:guards
+      - run: npm test

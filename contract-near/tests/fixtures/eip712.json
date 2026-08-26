@@ -1,0 +1,58 @@
+[
+  {
+    "label": "base-small",
+    "chainId": 8453,
+    "verifyingContract": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "domainName": "USD Coin",
+    "domainVersion": "2",
+    "from": "0x7De1259Cc50963091551B29DA22fDd01a0b8Ca79",
+    "to": "0x209693Bc6afc0C5328bA36FaF03C514EF312287C",
+    "value": "10000",
+    "validAfter": "0",
+    "validBefore": "1800000300",
+    "nonce": "0x1111111111111111111111111111111111111111111111111111111111111111",
+    "digest": "0xffa3f0a59c7164f9f73010e51b86664bc8978c19ded79b81fff0f8246641846b"
+  },
+  {
+    "label": "base-large",
+    "chainId": 8453,
+    "verifyingContract": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "domainName": "USD Coin",
+    "domainVersion": "2",
+    "from": "0x7De1259Cc50963091551B29DA22fDd01a0b8Ca79",
+    "to": "0x209693Bc6afc0C5328bA36FaF03C514EF312287C",
+    "value": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+    "validAfter": "0",
+    "validBefore": "1800000300",
+    "nonce": "0x1111111111111111111111111111111111111111111111111111111111111111",
+    "digest": "0xac305cd155f3fc8088654a96eb04e340fe306a67aa0b19ee21f9733805e5fad4"
+  },
+  {
+    "label": "base-sepolia-small",
+    "chainId": 84532,
+    "verifyingContract": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    "domainName": "USDC",
+    "domainVersion": "2",
+    "from": "0x7De1259Cc50963091551B29DA22fDd01a0b8Ca79",
+    "to": "0x209693Bc6afc0C5328bA36FaF03C514EF312287C",
+    "value": "10000",
+    "validAfter": "0",
+    "validBefore": "1800000300",
+    "nonce": "0x1111111111111111111111111111111111111111111111111111111111111111",
+    "digest": "0x40dcf66c29467be64fa78c2c5292c9eefe41eaf005648a60fde67178c5d0e714"
+  },
+  {
+    "label": "base-sepolia-large",
+    "chainId": 84532,
+    "verifyingContract": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    "domainName": "USDC",
+    "domainVersion": "2",
+    "from": "0x7De1259Cc50963091551B29DA22fDd01a0b8Ca79",
+    "to": "0x209693Bc6afc0C5328bA36FaF03C514EF312287C",
+    "value": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+    "validAfter": "0",
+    "validBefore": "1800000300",
+    "nonce": "0x1111111111111111111111111111111111111111111111111111111111111111",
+    "digest": "0x5f7b5063bec270f0a0b0c5a51c4b2ad155e67c3da51e765bfb6395eebf87bf5e"
+  }
+]

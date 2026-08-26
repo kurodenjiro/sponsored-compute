@@ -39,7 +39,7 @@ export async function GET() {
         perTxCapLabel: fmt(campaign.perTxCap, campaign.asset),
         dailyCapLabel: fmt(campaign.dailyCap, campaign.asset),
         asset: campaign.asset,
-        symbol: campaign.asset === 1 ? 'AVAX' : 'XSGD',
+        symbol: 'USDC',
         status: campaign.paused ? 'paused' : available >= campaign.grantAmount ? 'open' : 'exhausted',
         repoUrl: repo?.repoUrl,
         repoSlug: repo?.repoSlug,

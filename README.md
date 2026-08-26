@@ -1,128 +1,114 @@
 # Sponsored Compute
 
-Sponsored Compute lets a dev-tool platform sponsor give developers purpose-bound XSGD credit for approved infrastructure — claimed and spent by an AI coding agent (Claude Code, Codex) instead of a human filling out forms. A sponsor funds a campaign for a repository; when a developer claims it, the resulting Grant is bound to that campaign, an approved merchant and its `payTo` wallet, a per-transaction/daily limit, an expiry, and revocation status. The agent never receives an unrestricted `unwrap` — it can pay a merchant only after a local checkpoint verifies the request.
+Purpose-bound infrastructure credit, granted to an AI agent instead of a person.
 
-The demo runs on **Avalanche Fuji** (`43113`) using an x402-style EIP-3009 payment flow. It is a focused **PBM-compatible prototype**, not a full ERC-7291 implementation.
+A dev-tool platform funds a campaign on **NEAR**. A developer's coding agent claims a grant bound to
+their **repository**, then pays real [x402](https://x402.org) merchants on **Base** — from an address
+that the NEAR contract itself controls. The sponsor deletes one access key and spending stops on both
+chains at once.
 
-## Architecture flow
+> **Status:** contract live on NEAR testnet, full flow proven end to end.
+> Plan: [docs/ROADMAP-NEAR-MVP.md](docs/ROADMAP-NEAR-MVP.md) · Work split: [docs/TASKS-NEAR.md](docs/TASKS-NEAR.md)
+>
+> The Avalanche/XSGD build this grew out of was removed on 26/08/2026; its reasoning is kept in
+> [docs/archive/](docs/archive/).
 
-Full diagram (functional blocks, on-chain layer, data flow): [`architecture.drawio`](architecture.drawio) — open in [diagrams.net](https://app.diagrams.net).
+## Why NEAR holds the money
 
-```mermaid
-flowchart LR
-    subgraph P1["① Campaign setup — sponsor"]
-        SP[Sponsor] -->|repo URL + fund XSGD| SC["/sponsor console"]
-        SC -->|createCampaign + fund| GM[(GrantManager)]
-        SC -->|cli init| REPO["sponsored.json + .mcp.json\ncommitted to repo"]
-    end
-    subgraph P2["② Grant claim & pay-per-use — developer + agent"]
-        REPO --> DEV[Developer clones repo]
-        DEV --> AGENT["AI agent (Claude Code / Codex)\n.mcp.json auto-loads"]
-        AGENT -->|claim_sponsored_grant| GM
-        AGENT -->|pay_for_service| CP[Checkpoint\noff-LLM]
-        CP -->|verify allowlist/cap/expiry| GM
-        CP -->|sign EIP-3009| MAPI[Merchant API]
-        MAPI --> FAC[x402 Facilitator] --> XSGD[(XSGD settle)]
-    end
+A NEAR `FunctionCall` access key already *is* most of what purpose-bound credit needs, at the protocol
+level rather than in a thousand lines of audited contract:
+
+```
+receiver_id   → the key reaches exactly one contract
+method_names  → and exactly two of its methods
+allowance     → a gas ceiling; an exhausted key simply stops
+DeleteKey     → revocation in one transaction
 ```
 
-On-chain contracts hold the authority; Supabase and the web registry only provide discovery, payment history, and replay protection — neither can create a valid Grant on its own.
+The key cannot attach NEAR, so it cannot move value on its own — it can only ask the contract, and the
+contract checks the allowlist, the per-transaction cap, the daily cap, the vested amount and the expiry
+before anything moves.
 
-## Tech stack
+One detail worth knowing before reading the contract: the key lives on `grant-manager` itself, not on
+the agent's account. NEAR only permits `AddKey`/`DeleteKey` when `predecessor == receiver`, so a
+contract can key itself and nothing else. That makes revocation *stronger* — the contract deletes the
+key without the agent's cooperation — and it means **the agent needs no NEAR account and no balance at
+all**; gas is paid by the contract, bounded by `allowance`. Details:
+[contract-near/README.md](contract-near/README.md).
 
-| Layer | Choice | Why |
-| --- | --- | --- |
-| Chain | Avalanche Fuji (`43113`) | ~1s finality, ~$0.001/tx — cheap enough to pay per usage instead of batching invoices |
-| Credit | XSGD (StraitsX, MAS-licensed) | The credit *is* a real stablecoin — no separate ledger, and it supports EIP-3009 for off-chain signing |
-| Purpose-binding | PBM-compatible subset of ERC-7291 | Spend cap, expiry, merchant allowlist, and revocation live in the money itself, enforced on-chain |
-| Payment protocol | x402 | Agent pays per request over HTTP 402 — no account, no API key, no card |
-| Settlement | self-relay or 0xGasless facilitator | Agent doesn't need to hold AVAX to pay gas for settlement |
-| Backend | Supabase | Payment history and nonce/replay protection, atomic across serverless instances |
-| Hosting | Vercel (Next.js) | Sponsor console, merchant dashboard, and API routes as serverless functions — no separate backend host |
+## Why Base holds the merchants
 
-## Repository layout
+x402 has a NEAR binding in the spec, but no facilitator settles it — the public facilitator at
+x402.org advertises `eip155:84532` among EVM networks and nothing for NEAR (verified 26/08/2026).
+The merchants worth paying are on Base. So the Base address is derived from the NEAR contract through
+[Chain Signatures](https://docs.near.org/chain-abstraction/chain-signatures):
+
+```
+gm.anyone3-pay.testnet + path "grant-1"  →  0x7De1259Cc50963091551B29DA22fDd01a0b8Ca79
+```
+
+No private key exists for that address, anywhere. Only the contract can sign for it, and only after the
+same caps pass again. That is the whole architecture in one line.
+
+## Two layers, one rule set
+
+`src/core/policy.ts` refuses a bad payment on the client, before any round trip.
+`pay_merchant` refuses it again on-chain, where nobody can patch it out. Steps 7 and 8 of the spike run
+the same two requests, once through the checkpoint and once around it:
+
+```
+[checkpoint] DENIED (MERCHANT_NOT_ALLOWED): payTo agenttest1.testnet is not in this Grant's allowlist.
+Smart contract panicked: merchant not in the campaign allowlist
+```
+
+## Layout
 
 ```text
-contracts/     Solidity contracts, deployment scripts, and Hardhat tests
-src/           Shared TypeScript: grants, policy checkpoint, signer, relay, CLI
-mcp/           MCP server exposed to coding agents
-web/           Next.js sponsor console, merchant dashboard, and API routes
-web/supabase/  SQL schema for persistent registry and payment data
-docs/          Product, security, workflow, research, and demo documentation
-scripts/       Local seed and merchant-generation utilities
-deployments/   Network deployment addresses
-architecture.drawio   Architecture & data-flow diagram
-slides/pitch/  Pitch deck (Word/PowerPoint) and its generator scripts
+contract-near/   grant-manager (Rust, near-sdk) + policy tests
+src/core/        chain-agnostic domain model, the policy decision, the key store
+src/near/        NEAR config, agent key, grant reader, NEAR-leg checkpoint
+src/base/        Base config, EIP-3009 / x402 v2 client, derived-address helpers
+scripts/         agent CLI and the end-to-end testnet spike
+web/             Next.js app shell — console rebuilt in Wave 3
+docs/            roadmap, task split, proposals; docs/archive/ holds the Avalanche era
 ```
 
 ## Quickstart
 
 ```bash
 npm install
-npm run build
-
-cd web
-cp .env.example .env.local
-npm install
-npm run dev
+npm test            # policy + keystore + 24 contract tests
 ```
 
-Open `http://localhost:4030`:
-
-- `/` — landing page and agent walkthrough
-- `/sponsor` — create/fund a repository campaign
-- `/merchant` — merchant dashboard and settlement history
-- `/api/v1/query` — x402-protected merchant API
-
-Optional demo merchant instances: `npm run dev:neon` (NeonLite, `:4032`), `npm run dev:evil` (malicious merchant with prompt injection, `:4031`).
-
-Requires Node.js 20+, an Avalanche Fuji wallet with test AVAX, XSGD on Fuji to fund a campaign, and a Supabase project for any shared or Vercel deployment.
-
-## Agent setup
-
-The project ships MCP declarations for Claude Code and Codex — cloning a sponsored repo and opening the agent is enough; `.mcp.json` auto-loads the server, nothing to install manually. Five tools are exposed: `list_sponsored_platforms`, `check_project_sponsorship`, `get_grant_status` (read-only), and `claim_sponsored_grant`, `pay_for_service` (external effects — call only with explicit user approval).
-
-The agent signs with a local EOA generated on first use and stored in the OS keychain (falls back to a `0600` file, or `AGENT_PRIVATE_KEY` for CI). The key never enters the model's context; damage is bounded by the Grant itself — capped, expiring, merchant-bound, and revocable by the sponsor. Details: [docs/SPONSORED-COMPUTE.md](docs/SPONSORED-COMPUTE.md).
-
-## Deploy to Vercel
-
-1. Push to GitHub and import the repo in [Vercel](https://vercel.com/new) with **Root Directory** set to `web`.
-2. Add the variables from [`web/.env.example`](web/.env.example) in **Settings → Environment Variables** (Production only, unless previews need them). Never prefix server secrets with `NEXT_PUBLIC_`.
-3. Run [`web/supabase/schema.sql`](web/supabase/schema.sql) in your Supabase project before deploying — it's required for replay protection to be atomic across serverless instances.
-4. Deploy with Vercel's defaults (`npm install`, `npm run build`), then copy the production URL into `SPONSORED_REGISTRY_URL` and redeploy.
-
-Key env vars: `CHAIN_ID`, `MERCHANT_PAYTO`, `SUPABASE_URL` / `SUPABASE_SECRET_KEY`, `RELAYER_PRIVATE_KEY` (needs Fuji AVAX), `X402_SETTLEMENT_PROVIDER` (`self-relay` or `0xgasless`), `SPONSORED_REGISTRY_URL`. Local-only: `SPONSORED_LOCAL_GRANT=1` reads Grant state from a fixture file — never set it in a deployed environment.
-
-## AWS deployment example
-
-[kurodenjiro/demo-storedb-aws-1](https://github.com/kurodenjiro/demo-storedb-aws-1) is a companion repo showing a sponsored platform running on AWS instead of Vercel: **API Gateway HTTP API + Lambda (Node.js 20, arm64) + DynamoDB**, deployed with **AWS SAM**, wired to a live Sponsored Compute campaign on Fuji.
-
-It also demonstrates a second grant type this repo doesn't cover elsewhere: instead of XSGD for merchant payments, the campaign releases a capped **native AVAX gas grant** to the developer's agent signer, just enough to cover on-chain setup/deployment transactions — separate from and never substitutable for AWS billing.
+Run the whole flow against live testnet — campaign, funding, claim, payment, both refusal layers, and
+revocation:
 
 ```bash
-git clone https://github.com/kurodenjiro/demo-storedb-aws-1
-cd demo-storedb-aws-1
-npm install
-sam build
-sam deploy --guided   # needs an AWS account + configured AWS CLI + AWS SAM CLI
+CAMPAIGN=demo1 REPO=github.com/you/your-repo npm run near:spike
 ```
 
-Open Claude Code or Codex in that directory and ask it to check `sponsored.json`, verify the campaign on-chain, claim the grant, and deploy — the same checkpoint-gated flow described above, applied to AWS infrastructure instead of an x402 merchant API.
-
-## Verify
+Read a grant the way the agent does:
 
 ```bash
-npm run typecheck
-npm test
-
-cd web
-npm run build
+npm run near:agent -- status demo1 github.com/you/your-repo
 ```
 
-## Documentation
+Requires Node 20+, the [`near`](https://github.com/near/near-cli-rs) CLI with a funded testnet
+account, and a Rust toolchain with the `wasm32-unknown-unknown` target for contract work.
 
-- [Payment workflow](docs/WORKFLOW.md)
-- [Architecture and security decisions](docs/SPONSORED-COMPUTE.md)
-- [Demo runbook](docs/DEMO.md)
-- [Research and alternatives](docs/RESEARCH.md)
-- [Decision log](docs/DECISION.md)
+## Contract work
+
+```bash
+npm run near:build     # ALWAYS build through this — see contract-near/README.md
+npm run near:test
+npm run near:deploy
+```
+
+`cargo build` on its own omits `--cfg near`, and near-sdk then strips every `require!` message down to
+`WebAssembly trap: unreachable`. The contract still enforces its rules; you just stop being able to
+see which one refused.
+
+## Deployment
+
+Testnet: [`gm.anyone3-pay.testnet`](https://testnet.nearblocks.io/address/gm.anyone3-pay.testnet),
+token `usdc.fakes.testnet`. Recorded in [deployments/near-testnet.json](deployments/near-testnet.json).

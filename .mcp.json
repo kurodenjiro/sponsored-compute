@@ -2,11 +2,11 @@
   "mcpServers": {
     "sponsored-compute": {
       "command": "npx",
-      "args": ["tsx", "mcp/server.ts"],
+      "args": ["tsx", "scripts/near-agent.ts"],
       "env": {
-        "CHAIN_ID": "43113",
-        "GRANT_MANAGER": "0xbd1ffd89b634810fe09069312d618641f43d9814",
-        "SPONSORED_REGISTRY_URL": "https://sponsored-compute.vercel.app"
+        "NEAR_NETWORK": "testnet",
+        "NEAR_GRANT_MANAGER": "gm.anyone3-pay.testnet",
+        "BASE_CHAIN_ID": "84532"
       }
     }
   }

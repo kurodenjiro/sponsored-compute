@@ -20,7 +20,7 @@ export type SponsoredRepo = {
   grantAmount: string;
   funded: string;
   committed: string;
-  /** 0 = XSGD, 1 = native AVAX */
+  /** NEP-141 contract id (NEAR leg) or ERC-20 address (Base leg). */
   asset: 0 | 1;
   tx?: string;
   createdAt: string;
