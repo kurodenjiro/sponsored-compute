@@ -137,5 +137,46 @@ deny('denies Base mainnet when the Grant spends on Sepolia',
 deny('denies a Grant that may spend nothing',
   evaluate({ ...base, intent: intent(), grant: grant({ spendableAssets: [] }) }));
 
+// --- rate limit (task 2.2) ---
+{
+  const hour = 3600;
+  const paid = (n: number, at = NOW - 60) =>
+    Array.from({ length: n }, () => ({ payee: { chain: BASE, address: MERCHANT }, at }));
+
+  const d = evaluate({ ...base, intent: intent(), grant: grant(), maxPerMerchantPerHour: 3, recent: paid(2) });
+  check('allows under the per-merchant rate limit', d.ok, true);
+
+  deny('denies at the per-merchant rate limit',
+    evaluate({ ...base, intent: intent(), grant: grant(), maxPerMerchantPerHour: 3, recent: paid(3) }));
+
+  // The window is what makes this a rate and not a total.
+  const old = evaluate({
+    ...base, intent: intent(), grant: grant(),
+    maxPerMerchantPerHour: 3, recent: paid(5, NOW - hour - 1),
+  });
+  check('ignores payments older than the window', old.ok, true);
+
+  // Another merchant's traffic is not this merchant's.
+  const other = evaluate({
+    ...base, intent: intent(), grant: grant(), maxPerMerchantPerHour: 1,
+    recent: [{ payee: { chain: BASE, address: ATTACKER }, at: NOW - 10 }],
+  });
+  check('counts per merchant, not in total', other.ok, true);
+
+  // Same address, different chain — the allowlist is chain-keyed, so this is too.
+  const crossChain = evaluate({
+    ...base, intent: intent(), grant: grant(), maxPerMerchantPerHour: 1,
+    recent: [{ payee: { chain: 'eip155:8453', address: MERCHANT }, at: NOW - 10 }],
+  });
+  check('counts per chain as well as per merchant', crossChain.ok, true);
+
+  /**
+   * Fail-closed: configuring a limit and forgetting the history must not read as
+   * "no limit". That mistake is silent and only shows up as a drained budget.
+   */
+  deny('denies when a limit is set but no history is supplied',
+    evaluate({ ...base, intent: intent(), grant: grant(), maxPerMerchantPerHour: 3 }));
+}
+
 console.log(`\n${pass} pass, ${fail} fail`);
 process.exit(fail === 0 ? 0 : 1);

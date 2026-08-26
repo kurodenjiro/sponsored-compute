@@ -1,5 +1,5 @@
 [workspace]
-members = ["mock-ft"]
+members = ["mock-ft", "mock-mpc"]
 
 [package]
 name = "grant-manager"

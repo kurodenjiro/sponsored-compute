@@ -9,6 +9,7 @@
  *
  * Usage:
  *   npx tsx scripts/near-agent.ts pubkey
+ *   npx tsx scripts/near-agent.ts evm-address <campaign>
  *   npx tsx scripts/near-agent.ts status  [campaign] [repo]   (no args: look up by our own key)
  *   npx tsx scripts/near-agent.ts pay     <campaign> <repo> <merchant> <amount> <max>
  *   npx tsx scripts/near-agent.ts pay-unchecked <merchant> <amount>   (demo only)
@@ -32,6 +33,16 @@ async function main() {
   const [cmd, ...args] = process.argv.slice(2);
   const net = getNearNetwork();
   const contractId = requireGrantManager();
+
+  // The address a campaign signs from on Base. The sponsor needs it twice: to
+  // fund it, and to hand to `set_evm_leg`.
+  if (cmd === 'evm-address') {
+    const [campaign] = args;
+    if (!campaign) throw new Error('usage: evm-address <campaign>');
+    const { deriveCampaignAddress } = await import('../src/base/address.js');
+    console.log(await deriveCampaignAddress(campaign));
+    return;
+  }
 
   if (cmd === 'pubkey') {
     const agent = await loadNearAgent({ quiet: true });
@@ -132,7 +143,7 @@ async function main() {
   }
 
   console.error(
-    'commands: pubkey | status [campaign] [repo] | pay <campaign> <repo> <merchant> <amount> <max> | pay-unchecked <merchant> <amount> | tranche',
+    'commands: pubkey | evm-address <campaign> | status [campaign] [repo] | pay <campaign> <repo> <merchant> <amount> <max> | pay-unchecked <merchant> <amount> | tranche',
   );
   process.exit(1);
 }

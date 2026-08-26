@@ -179,20 +179,48 @@ Quy tắc khi cần chạm sang phần của bên kia: **mở task mới, đừn
 
 | # | Task | Class | Model | Ngày | Deps |
 |---|---|---|---|---|---|
-| 1.1 | 🔴 **`evm.rs`: dựng digest EIP-712 `TransferWithAuthorization`** trong Rust bằng `env::keccak256`. Test đọc `eip712.json`, phải khớp **bit-đối-bit** | A | **Opus** | 1.5 | 0.7 |
-| 1.2 | 🔴 **`request_evm_signature`** — `consume()` → dựng digest → `v1.signer.sign(digest, "campaign-<id>", 0)` → callback | A | **Opus** | 1.5 | 1.1 |
-| 1.3 | **Ráp chữ ký MPC** — `(big_r, s, recovery_id)` → `r‖s‖v` 65 byte, chuẩn hoá `s` theo EIP-2. Test: `ecrecover` ra đúng địa chỉ suy diễn | A | **Opus** | 1 | 1.2 |
-| 1.4 | **`reserved` + `release_expired`** — ép `valid_before ≤ now + 300s`, tiền vào `reserved` không phải `spent`, cùng hạn (§5 lộ trình) | A | **Opus** | 1 | 1.2 |
-| 1.5 | **`sweep_evm`** — sponsor quét USDC-Base về sau khi thu hồi | A | **Opus** | 0.5 | 1.2 |
-| 1.6 | **Test tấn công**: `to` ngoài allowlist · `amount` vượt trần · `valid_before` quá xa · xin ký hai lần cùng nonce | A | **Opus** | 1 | 1.4 |
+| 1.1 | ~~`evm.rs` dựng digest EIP-712~~ ✅ **xong** — [`src/evm.rs`](../contract-near/src/evm.rs), 6 test ở `tests/eip712.rs` khớp bit-đối-bit cả 4 vector | A | — | 0 | 0.7 |
+| 1.2 | ~~`request_evm_signature`~~ ✅ **xong** — nhận trường rời, contract tự dựng digest. Đã ký thật qua `v1.signer-prod.testnet` | A | — | 0 | 1.1 |
+| 1.3 | ~~Ráp chữ ký MPC + chuẩn hoá EIP-2~~ ✅ **xong** — `npm run base:sign` chứng minh `ecrecover` ra đúng địa chỉ phái sinh trên testnet thật | A | — | 0 | 1.2 |
+| 1.4 | ~~`reserved` + release~~ ✅ **xong** — ⚠️ **thiết kế đổi so với kế hoạch**, xem ghi chú dưới bảng | A | — | 0 | 1.2 |
+| 1.5 | ~~`sweep_evm`~~ ✅ **xong** — sponsor ký lệnh chuyển qua cùng đường ký | A | — | 0 | 1.2 |
+| 1.6 | ~~Test tấn công~~ ✅ **xong** — 6 test sandbox mới, tất cả bị từ chối **trước khi** chạm tới signer | A | — | 0 | 1.4 |
 | 1.7 | ~~`BASE_NETWORKS` registry~~ ✅ **xong 26/08** — [`src/base/config.ts`](../src/base/config.ts), domain verify live cả hai mạng | B | — | 0 | — |
 | 1.8 | ~~`deriveCampaignAddress()`~~ ✅ **xong 26/08** — [`src/base/address.ts`](../src/base/address.ts) | B | — | 0 | — |
 | 1.9 | ~~Luồng x402 Base phía agent~~ ✅ **xong 26/08** — [`src/base/pay.ts`](../src/base/pay.ts) trên SDK v2 chính thức, checkpoint nằm trong `signTypedData`, 18 test ở [`signer.test.ts`](../src/base/signer.test.ts). Còn lại **chỉ là cài `EvmSignatureRequester`** bằng `request_evm_signature` (task 1.2) | B | — | 0 | 1.3 |
-| 1.9b | Đo verify/settle thật: bật `spendControls` của SDK làm lớp trần thứ ba, xử lý `paymentStatus === 'settle_failed'` | B | Sonnet | 0.5 | 1.2 |
+| 1.9b | ~~Nối requester thật~~ ✅ **xong** — [`src/near/evm-requester.ts`](../src/near/evm-requester.ts). Facilitator thật đã **chấp nhận chữ ký** (`invalid_exact_evm_insufficient_balance` = hợp lệ, chỉ thiếu tiền). Còn lại: bật `spendControls` của SDK | B | Sonnet | 0.25 | — |
 | 1.10 | **Test CI: không tồn tại địa chỉ Base ngoài phái sinh** — grep repo tìm private key / ví Base, fail build | B | Sonnet | 0.5 | 1.8 |
-| 1.11 | Trả tiền thật cho merchant Base Sepolia (§4.4 lộ trình bước 3). **Cả hai đầu đã sẵn sàng:** merchant của ta ở [`merchant-demo/`](../merchant-demo/server.ts) (`npm run merchant`) và `npm run base:probe` chạy hết luồng với requester từ chối — đổi sang requester thật là xong | B | Sonnet | 0.5 | 1.2 |
+| 1.11 | ⏳ **Chỉ còn nạp tiền.** `npm run base:probe -- <url> --real <campaign> <repo>` chạy hết luồng thật; facilitator xác nhận chữ ký hợp lệ. Cần USDC Base Sepolia vào địa chỉ phái sinh của campaign (`npm run near:agent -- evm-address <campaign>`) | B | người | — | — |
 
 > **🚦 Cổng MVP:** trả được cho một merchant x402 **có thật** trên Base Sepolia bằng grant sống trên NEAR, và 1.10 xanh.
+> **Trạng thái:** mọi mắt xích đã thông, chỉ còn nạp USDC. Facilitator thật trả
+> `invalid_exact_evm_insufficient_balance` — tức chữ ký **đã qua khâu xác minh**.
+
+### 🔴 Đổi thiết kế ở 1.4 — release **không** được permissionless
+
+Kế hoạch ban đầu cho `release_expired` ai gọi cũng được, lập luận: quá hạn thì chữ ký EIP-3009 chết
+theo nên không double-spend được. Đúng với **một** chữ ký, và vẫn sai khi cộng dồn:
+
+> xin ký → submit → để quá hạn → release → lặp lại. Mỗi lần đều settle, không lần nào bị tính, và
+> campaign cạn tiền trong khi sổ cái đọc ra số 0.
+
+Chỉ ai nhìn được Base mới biết reservation nào thật sự hỏng, và sponsor vừa là bên đó vừa là bên mất
+tiền. Nên `release_reservation` **chỉ sponsor gọi được**, và mặc định an toàn là *không làm gì*:
+reservation không được release thì vẫn tính là đã tiêu.
+
+Ngoại lệ duy nhất tự release: **vòng ký thất bại**. Lúc đó chắc chắn không có chữ ký nào ra đời, nên
+callback trả tiền lại ngay mà không cần ai xác nhận.
+
+**Ba phát hiện khác của Wave 1:**
+
+1. **`GRANT_METHODS` là biên giới bảo mật, không phải danh sách tiện lợi.** Thêm
+   `request_evm_signature` vào đó nới quyền cho **mọi** grant đang tồn tại. Access key từ chối method
+   lạ ở tầng runtime — test đầu tiên fail đúng vì lý do này, và đó là hệ thống hoạt động đúng.
+2. **Đoán MPC signer theo hậu tố account là sai.** Sandbox dùng `*.test.near`, kết thúc bằng `.near`,
+   nên logic cũ chọn nhầm mainnet. Signer giờ là state, đặt lúc `new()` — vừa test được vừa không
+   đoán mò.
+3. **`cargo test` không build lại wasm.** Sandbox nạp file `release/` cũ, nên sửa contract xong chạy
+   `cargo test` thẳng sẽ test nhầm bản cũ. Luôn dùng `npm run near:test`, nó build trước.
 
 ---
 
@@ -201,7 +229,7 @@ Quy tắc khi cần chạm sang phần của bên kia: **mở task mới, đừn
 | # | Task | Class | Model | Ngày | Deps |
 |---|---|---|---|---|---|
 | 2.1 | **Rà `src/x402.ts` theo x402 v2** — payload, không chỉ tên header. Xoá ghi chú "phi chuẩn StraitsX" đã sai | B | Sonnet | 1 | 1.9 |
-| 2.2 | **Rate limit theo merchant** trong `src/core/policy.ts` — số chữ ký/giờ, fail-closed | A | **Opus** | 0.5 | — |
+| 2.2 | ~~Rate limit theo merchant~~ ✅ **xong** — `maxPerMerchantPerHour`, fail-closed khi thiếu history, 6 test | A | — | 0 | — |
 | 2.3 | **Xử lý facilitator verify ≠ settle** — không coi `verify` là thành công; đối soát log `Transfer` trên Base | B | Sonnet | 1 | 1.11 |
 | 2.4 | `Campaign.verifier` + `claim_grant(owner)` chỉ nhận từ verifier/sponsor (~10 dòng) | A | **Opus** | 0.5 | — |
 | 2.5 | **Verifier repo do sponsor chạy** — GitHub OIDC hoặc commit chứa nonce | B | Sonnet | 1 | 2.4 |

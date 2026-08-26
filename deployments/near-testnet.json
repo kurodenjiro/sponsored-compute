@@ -11,27 +11,17 @@
   "deployedAt": "2026-08-26",
   "campaigns": [
     {
-      "id": "spike",
+      "id": "evm1",
       "sponsor": "anyone3-pay.testnet",
       "merchants": [
         "anyone-pay.testnet"
-      ]
-    },
-    {
-      "id": "spike2",
-      "sponsor": "anyone3-pay.testnet",
-      "merchants": [
-        "anyone-pay.testnet"
-      ]
-    },
-    {
-      "id": "spike3",
-      "sponsor": "anyone3-pay.testnet",
-      "merchants": [
-        "anyone-pay.testnet"
-      ]
+      ],
+      "evmChainId": 84532,
+      "evmAddress": "0x20b28B70AfD5AAD5534F44Cf3e8503D83414c3DF"
     }
   ],
-  "note": "Wave 0 complete. Contract carries the storage preflight, get_grant_by_key, and split views. Verified end to end by scripts/near-spike.sh on 26/08/2026.",
-  "keyAllowanceNote": "key_allowance is a prepaid-gas budget checked per transaction - size it as prepaid gas per call x expected calls, never below one call."
+  "note": "Wave 1 contract. The account was deleted and recreated on 26/08/2026 because the Campaign/Grant schema changed and this is pre-MVP state. Verified end to end: npm run base:sign proves the contract signs for the address it derives.",
+  "keyAllowanceNote": "key_allowance is a prepaid-gas budget checked per transaction - size it as prepaid gas per call x expected calls, never below one call.",
+  "mpcSigner": "v1.signer-prod.testnet",
+  "redeployWarning": "Changing the Campaign or Grant struct breaks Borsh compatibility with deployed state. Recreate the account rather than deploying over it."
 }

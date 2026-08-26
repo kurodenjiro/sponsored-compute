@@ -10,6 +10,7 @@
     "//files-note": "Cho phép `npx -y --package github:<owner>/x402-hack sponsored-compute` chạy được khi chưa publish lên npm: npm chạy prepare sau khi clone git dep, nên dist/ được build tại chỗ. KHÔNG nuốt lỗi — build hỏng thì bin không tồn tại, phải thấy ngay.",
     "//near": "Rust contract lives in contract-near/. ALWAYS build through near:build - contract-near/.cargo/config.toml sets --cfg near, without which near-sdk strips every require! message.",
     "base:probe": "tsx scripts/base-probe.ts",
+    "base:sign": "tsx scripts/base-sign-probe.ts",
     "build": "tsc -p tsconfig.build.json",
     "ci:guards": "./scripts/ci-guards.sh",
     "fixtures": "tsx scripts/gen-eip712-fixtures.ts",
